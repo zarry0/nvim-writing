@@ -1,0 +1,7 @@
+{
+  "schemaVersion": 1,
+  "main": "main.md",
+  "buildDir": "build",
+  "bibliography": "references.bib",
+  "referenceDoc": "reference.docx"
+}

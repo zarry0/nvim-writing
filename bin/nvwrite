@@ -1,0 +1,13 @@
+#!/usr/bin/env sh
+set -eu
+
+NVWRITE_NEOVIM_VERSION="${NVWRITE_NEOVIM_VERSION:-0.12.4}"
+NVWRITE_TREE_SITTER_VERSION="${NVWRITE_TREE_SITTER_VERSION:-0.26.1}"
+
+if command -v asdf >/dev/null 2>&1; then
+  export ASDF_NEOVIM_VERSION="$NVWRITE_NEOVIM_VERSION"
+  export ASDF_TREE_SITTER_VERSION="$NVWRITE_TREE_SITTER_VERSION"
+fi
+
+export NVIM_APPNAME="nvim-writing"
+exec nvim "$@"

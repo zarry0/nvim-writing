@@ -1,0 +1,6 @@
+{
+  "schemaVersion": 1,
+  "main": "main.typ",
+  "buildDir": "build",
+  "bibliography": "references.bib"
+}
