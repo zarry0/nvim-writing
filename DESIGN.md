@@ -41,7 +41,7 @@ Toda actualización debe seguir `docs/UPDATING.md`.
 Instalación inicial:
 
 ```text
-/Users/roweller/nvim-writting
+/Users/roweller/nvim-writing
   repositorio
 
 ~/.config/nvim-writing
