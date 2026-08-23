@@ -83,6 +83,14 @@ Cuando cambie nvim-treesitter, ejecuta `:TSUpdate` en la misma actualización de
 plugin porque sus parsers y queries deben coincidir. Registra también la versión
 mínima requerida de `tree-sitter-cli`.
 
+`live-preview.nvim` requiere atención especial: `writing.core.live_preview`
+envuelve las APIs internas `Server:routes`, `handler.serve_file` y
+`websocket.handshake` para aplicar las garantías de seguridad documentadas. No
+muevas su commit fijado sin revisar esas APIs y ejecutar el smoke completo. Si
+upstream incorpora protecciones equivalentes, retira el wrapper sólo después de
+conservar y pasar las pruebas de traversal, symlinks, `Origin`, CSP y cierre de
+clientes al detener el servidor.
+
 ## Mason, Typst y Pandoc
 
 Actualiza Tinymist y LTeX+ por separado desde `:Mason`. Después reinicia, revisa
@@ -105,10 +113,15 @@ imports o macros conocidos. Exit code 0 no sustituye la inspección visual.
 5. Probar archivos, grep, buffer y outline con fzf.
 6. Abrir LazyGit en un repositorio de prueba.
 7. Crear un proyecto Typst fuera del repo con `:WriteNew`.
-8. Preview y PDF desde Typst; DOCX desde Markdown. Registrar aparte el resultado
-   de Typst → DOCX como capacidad de mejor esfuerzo.
-9. Insertar una cita.
-10. Ejecutar `:WriteRoot`, `:WriteHealth`, `:checkhealth` y `tests/smoke.lua`.
+8. Preview y PDF desde Typst; preview y DOCX desde Markdown. En Markdown,
+   confirmar que el servidor usa `127.0.0.1`, un puerto efímero, bloquea path
+   traversal y symlinks, rechaza WebSockets cross-origin, envía la CSP esperada
+   y no conserva clientes al ejecutar `:WritePreviewStop`.
+9. Abrir `<leader>u`, recorrer una rama del undo tree nativo y cerrarlo.
+10. Registrar aparte Typst → DOCX como capacidad de mejor esfuerzo.
+11. Insertar una cita.
+12. Ejecutar `:WriteRoot`, `:WriteHealth`, `:checkhealth`,
+    `:checkhealth livepreview` y `tests/smoke.lua`.
 
 ## Rollback por capa
 

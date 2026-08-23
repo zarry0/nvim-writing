@@ -55,21 +55,55 @@ local function insert_citation()
   end)
 end
 
+local function is_markdown_extension(extension)
+  return extension == "md" or extension == "markdown"
+end
+
 local function preview()
   local context, error_message = require("writing.core.project").require_valid(0)
   if not context then
     notify(error_message, vim.log.levels.ERROR)
     return
   end
-  if vim.fn.fnamemodify(context.main, ":e") ~= "typ" then
-    notify("El preview live está disponible para Typst", vim.log.levels.ERROR)
+
+  local extension = vim.fn.fnamemodify(context.main, ":e"):lower()
+  if extension == "typ" then
+    if vim.fn.exists(":TypstPreview") ~= 2 then
+      notify("typst-preview.nvim aún no está disponible", vim.log.levels.ERROR)
+      return
+    end
+    vim.api.nvim_cmd({ cmd = "TypstPreview" }, {})
     return
   end
-  if vim.fn.exists(":TypstPreviewToggle") ~= 2 then
-    notify("typst-preview.nvim aún no está disponible", vim.log.levels.ERROR)
+
+  if is_markdown_extension(extension) then
+    if vim.fn.exists(":LivePreview") ~= 2 then
+      notify("live-preview.nvim aún no está disponible", vim.log.levels.ERROR)
+      return
+    end
+    vim.api.nvim_cmd({ cmd = "LivePreview", args = { "start", context.main } }, {})
     return
   end
-  vim.api.nvim_cmd({ cmd = "TypstPreviewToggle" }, {})
+
+  notify("El preview live está disponible para Markdown y Typst", vim.log.levels.ERROR)
+end
+
+local function preview_stop()
+  local livepreview = package.loaded["livepreview"]
+  if livepreview and livepreview.is_running() then
+    vim.api.nvim_cmd({ cmd = "LivePreview", args = { "close" } }, {})
+    return
+  end
+
+  local context = require("writing.core.project").resolve(0)
+  local extension = context.main and vim.fn.fnamemodify(context.main, ":e"):lower() or ""
+
+  if extension == "typ" and vim.fn.exists(":TypstPreviewStop") == 2 then
+    vim.api.nvim_cmd({ cmd = "TypstPreviewStop" }, {})
+    return
+  end
+
+  notify("No hay un preview activo compatible con este documento", vim.log.levels.WARN)
 end
 
 local function export_picker(opts)
@@ -102,7 +136,11 @@ function M.setup()
   end, { desc = "Mostrar contexto del documento" })
 
   vim.api.nvim_create_user_command("WritePreview", preview, {
-    desc = "Alternar preview live de Typst",
+    desc = "Iniciar preview live de Markdown o Typst",
+  })
+
+  vim.api.nvim_create_user_command("WritePreviewStop", preview_stop, {
+    desc = "Detener preview live de Markdown o Typst",
   })
 
   vim.api.nvim_create_user_command("WriteBuild", function(opts)
@@ -147,7 +185,8 @@ function M.setup()
 
   local map = vim.keymap.set
   map("n", "<leader>wn", "<cmd>WriteNew<CR>", { desc = "Writing: nuevo proyecto" })
-  map("n", "<leader>wp", "<cmd>WritePreview<CR>", { desc = "Writing: preview" })
+  map("n", "<leader>wp", "<cmd>WritePreview<CR>", { desc = "Writing: iniciar preview" })
+  map("n", "<leader>wP", "<cmd>WritePreviewStop<CR>", { desc = "Writing: detener preview" })
   map("n", "<leader>wb", "<cmd>WriteBuild<CR>", { desc = "Writing: compilar" })
   map("n", "<leader>wep", "<cmd>WriteExport pdf<CR>", { desc = "Writing: exportar PDF" })
   map("n", "<leader>wed", "<cmd>WriteExport docx<CR>", { desc = "Writing: exportar DOCX" })

@@ -42,7 +42,7 @@ git, typst, pandoc >= 3.10, fzf, rg, fd, lazygit, tree-sitter >= 0.26.1
 ```
 
 Mason gestiona Tinymist y LTeX+. El primer arranque necesita Internet para Lazy,
-Mason, parsers y componentes del preview.
+Mason, parsers y componentes de los previews.
 
 ## Primer arranque
 
@@ -103,11 +103,38 @@ markdown-essay
 El destino debe ser nuevo. La copia es independiente y no se hace `git init`.
 Usa `<Space>wn` para el selector y `<Space>wr` para ver root/main/build.
 
-## Typst
+## Preview live
 
 | Acción | Binding | Comando |
 |---|---|---|
-| Preview live | `<Space>wp` | `:WritePreview` |
+| Iniciar o abrir preview | `<Space>wp` | `:WritePreview` |
+| Detener preview | `<Space>wP` | `:WritePreviewStop` |
+
+El mismo binding selecciona el motor según el documento principal:
+
+- Markdown usa `live-preview.nvim` y abre el navegador predeterminado. Actualiza
+  el contenido mientras escribes, sincroniza el scroll y sirve únicamente en
+  `127.0.0.1`, en un puerto efímero elegido para esa sesión.
+- Typst usa `typst-preview.nvim` y respeta el `main` y el root resueltos por el
+  proyecto.
+
+Los comandos directos de Markdown son `:LivePreview start` y
+`:LivePreview close`; normalmente conviene usar los comandos `Write` para que
+ambos formatos conserven la misma interfaz.
+
+Para Markdown, el webroot es el directorio de `main.md`. Esto funciona con las
+plantillas incluidas, donde `main.md` vive en la raíz. Conserva imágenes y otros
+recursos dentro de ese árbol para que el navegador pueda servirlos. La capa de
+configuración rechaza rutas y symlinks que escapen de esa raíz, y sólo acepta el
+WebSocket procedente de la URL local exacta que abrió el preview. Una política
+CSP bloquea scripts inline y conexiones externas dentro del Markdown; por eso
+las imágenes y demás recursos del preview deben guardarse localmente en el
+proyecto en vez de depender de URLs remotas.
+
+## Typst y exportación
+
+| Acción | Binding | Comando |
+|---|---|---|
 | Compilar PDF | `<Space>wb` | `:WriteBuild` |
 | Exportar PDF | `<Space>wep` | `:WriteExport pdf` |
 | Exportar DOCX | `<Space>wed` | `:WriteExport docx` |
@@ -206,6 +233,15 @@ ventanas y muestra el buffer activo como `parent/file.ext`.
 
 También funcionan `gt`, `gT`, `:tabmove` y los comandos nativos de Neovim.
 
+## Undo tree nativo
+
+`<Space>u` carga bajo demanda el paquete `nvim.undotree` incluido en Neovim
+0.12.4 y abre o cierra `:Undotree`. No se instala `mbbill/undotree`.
+
+Al mover el cursor por el árbol, el documento cambia al estado seleccionado.
+El historial sigue siendo el undo nativo de Neovim y se conserva entre sesiones
+en el directorio de estado aislado de `nvim-writing`.
+
 ## Ventanas, búsquedas y Git
 
 | Binding | Acción |
@@ -220,6 +256,7 @@ También funcionan `gt`, `gT`, `:tabmove` y los comandos nativos de Neovim.
 | `<Space>lg` | LazyGit en el root Git |
 | `<Space>gl` | Log de Git |
 | `<Space>wf` | Modo concentración |
+| `<Space>u` | Undo tree nativo |
 
 Gitsigns usa `]h`/`[h` para navegar hunks y el grupo `<Space>g` para acciones.
 
@@ -228,6 +265,7 @@ Gitsigns usa `]h`/`[h` para navegar hunks y el grupo `<Space>g` para acciones.
 ```vim
 :WriteHealth
 :checkhealth
+:checkhealth livepreview
 :LspInfo
 :Mason
 :Lazy

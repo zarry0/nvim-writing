@@ -16,6 +16,11 @@ map("n", "<BS>J", "<C-w>J", { desc = "Mover ventana abajo" })
 map("n", "<BS>K", "<C-w>K", { desc = "Mover ventana arriba" })
 map("n", "<BS>L", "<C-w>L", { desc = "Mover ventana a la derecha" })
 
+map("n", "<leader>u", function()
+  vim.api.nvim_cmd({ cmd = "packadd", args = { "nvim.undotree" } }, {})
+  vim.api.nvim_cmd({ cmd = "Undotree" }, {})
+end, { desc = "Abrir undo tree nativo" })
+
 -- Tabby solamente dibuja estas tabpages nativas; no hay bufferline.
 map("n", "<C-t>t", "<cmd>tabnew<CR>", { desc = "Nueva tabpage" })
 map("n", "<C-t>c", "<cmd>tabclose<CR>", { desc = "Cerrar tabpage" })

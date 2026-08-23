@@ -11,7 +11,8 @@ implícitos. Antes de un cambio estructural se deben leer este archivo,
 
 - Notas TXT y Markdown.
 - Ensayos y documentos con formato.
-- Typst con LSP, live preview y PDF.
+- Markdown y Typst con live preview en navegador.
+- Typst con LSP y PDF.
 - DOCX mediante Pandoc.
 - Guiones mediante plantillas locales.
 - Ortografía y gramática en español e inglés.
@@ -74,6 +75,12 @@ No se deben cambiar accidentalmente estas reglas:
 14. Cada tab visible es una tabpage nativa, no un buffer disfrazado.
 15. El nombre de la tab es `parent/file.ext`, derivado de su ventana activa.
 16. PDF es la salida canónica de Typst; DOCX no promete fidelidad pixel-perfect.
+17. El historial visual usa `nvim.undotree`, incluido en Neovim 0.12; no se
+    reinstala `mbbill/undotree`.
+18. El servidor Markdown escucha sólo en `127.0.0.1`, usa un puerto efímero,
+    confina rutas/symlinks al webroot, valida el `Origin` del WebSocket, cierra
+    todos sus clientes al detenerse y aplica una CSP sin scripts inline ni red
+    externa.
 
 ## Modelo de documentos y raíz
 
@@ -129,7 +136,8 @@ build, bibliografía o reference DOCX de la raíz.
 |---|---|
 | `:WriteNew` | Copia una plantilla a un destino nuevo |
 | `:WriteRoot` | Muestra root, main, build y bibliografía |
-| `:WritePreview` | Alterna preview Typst en navegador |
+| `:WritePreview` | Inicia preview Markdown o Typst según el main |
+| `:WritePreviewStop` | Detiene el preview del formato actual |
 | `:WriteBuild[!]` | Genera la salida PDF; `!` guarda buffers del proyecto |
 | `:WriteExport[!] pdf\|docx` | Exporta al `build/` validado |
 | `:WriteLanguage[!]` | Cambia idioma; `!` persiste metadata |
@@ -145,7 +153,7 @@ Son API pública. Si se renombran, se deben actualizar mappings y ambos docs.
 
 | Binding | Acción |
 |---|---|
-| `<leader>wn/wp/wb` | New, preview, build |
+| `<leader>wn/wp/wP/wb` | New, iniciar preview, detener preview, build |
 | `<leader>wep/wed` | PDF, DOCX |
 | `<leader>wl/wc/wr/wf/wh` | Idioma, cita, root, focus, health |
 | `<leader>ff/fs/fc/fo` | Archivos, grep, config, outline |
@@ -154,6 +162,7 @@ Son API pública. Si se renombran, se deben actualizar mappings y ambos docs.
 | `<leader>e` y `-` | Oil |
 | `<leader>lg/gl` | LazyGit y log |
 | `<leader>h/v` | Splits |
+| `<leader>u` | Undo tree nativo |
 | `<C-h/j/k/l>` | Foco entre ventanas |
 | `<C-t>t/c/n/p` | Crear, cerrar, siguiente, anterior tabpage |
 
@@ -167,6 +176,14 @@ explícitamente esta invariante.
 
 Oil representa directorios como buffers editables. Sus operaciones se aplican al
 guardar y conservan confirmaciones. No añadir un segundo explorador por defecto.
+
+## Undo
+
+Neovim conserva el árbol de undo de forma nativa y `options.lua` habilita
+`undofile` bajo `stdpath("state")/undo`, aislado por `NVIM_APPNAME`. La interfaz
+visual es el paquete opcional `nvim.undotree` distribuido con Neovim 0.12.4.
+`<leader>u` ejecuta `:packadd nvim.undotree` bajo demanda y después `:Undotree`.
+No añadir otro plugin de undo sin retirar o justificar esta interfaz.
 
 ## Idioma y corrección
 
@@ -189,6 +206,15 @@ son contenido del usuario y deben preservarse.
 
 - Tinymist: LSP, formato, diagnósticos, referencias y símbolos.
 - typst-preview.nvim: preview bajo demanda usando el mismo main/root.
+- live-preview.nvim: preview Markdown en el navegador, actualización mientras
+  se escribe y scroll sincronizado. Usa el padre de `main.md` como webroot para
+  no cambiar el `cwd` global. `writing.core.live_preview` endurece el servidor
+  de la versión fijada: liga a localhost y a un puerto efímero, canonicaliza
+  cada ruta contra su raíz real y exige el `Origin` local exacto antes de aceptar
+  un WebSocket. También cierra y elimina todos los clientes HTTP/WebSocket en su
+  ciclo de vida y añade una CSP que permite sólo scripts locales del plugin,
+  impide scripts inline y restringe recursos/red al mismo origen. Las pruebas
+  deben impedir que una actualización pierda estas garantías.
 - Typst CLI: PDF exacto.
 - Pandoc: Markdown → DOCX/PDF y Typst → DOCX de mejor esfuerzo. Su lector Typst
   es parcial y puede rechazar imports o macros; no es una ruta de entrega fiable
@@ -215,12 +241,14 @@ lua/writing/
 │   ├── process.lua
 │   ├── templates.lua
 │   ├── language.lua
+│   ├── live_preview.lua
 │   └── commands.lua
 ├── health.lua
 └── plugins/
     ├── ui.lua
     ├── search.lua
     ├── git.lua
+    ├── markdown.lua
     ├── writing.lua
     ├── lsp.lua
     └── typst.lua
