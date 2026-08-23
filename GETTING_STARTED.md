@@ -11,7 +11,7 @@ Neovim 0.12.4
 El repositorio está en:
 
 ```text
-/Users/roweller/Documents/Codex/2026-08-22/mir/outputs/nvim-writing
+/Users/roweller/nvim-writting
 ```
 
 La instalación usa:

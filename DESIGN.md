@@ -41,7 +41,7 @@ Toda actualización debe seguir `docs/UPDATING.md`.
 Instalación inicial:
 
 ```text
-/Users/roweller/Documents/Codex/2026-08-22/mir/outputs/nvim-writing
+/Users/roweller/nvim-writting
   repositorio
 
 ~/.config/nvim-writing
