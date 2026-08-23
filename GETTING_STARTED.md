@@ -8,17 +8,17 @@ Versión soportada y recomendada:
 Neovim 0.12.4
 ```
 
-El repositorio está en:
+Ubicación sugerida del repositorio:
 
 ```text
-/Users/roweller/nvim-writing
+$HOME/nvim-writing
 ```
 
 La instalación usa:
 
 ```text
-~/.config/nvim-writing  -> repositorio
-~/.local/bin/nvwrite    -> bin/nvwrite
+$HOME/.config/nvim-writing  -> repositorio
+$HOME/.local/bin/nvwrite    -> bin/nvwrite
 ```
 
 El lanzador fija Neovim 0.12.4 con ASDF solamente para este perfil. `nvim`

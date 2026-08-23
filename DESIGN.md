@@ -39,16 +39,16 @@ Toda actualización debe seguir `docs/UPDATING.md`.
 | Proyectos | Fuentes, referencias, imágenes y `build/` | Decisión de cada proyecto |
 | Temporales | Preview y archivos transitorios | No |
 
-Instalación inicial:
+Instalación sugerida:
 
 ```text
-/Users/roweller/nvim-writing
+$HOME/nvim-writing
   repositorio
 
-~/.config/nvim-writing
+$HOME/.config/nvim-writing
   symlink al repositorio
 
-~/.local/bin/nvwrite
+$HOME/.local/bin/nvwrite
   symlink al lanzador bin/nvwrite
 ```
 
