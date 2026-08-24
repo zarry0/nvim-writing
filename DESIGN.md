@@ -45,7 +45,7 @@ Instalación sugerida:
 $HOME/nvim-writing
   repositorio
 
-$HOME/.config/nvim-writing
+${XDG_CONFIG_HOME:-$HOME/.config}/nvim-writing
   symlink al repositorio
 
 $HOME/.local/bin/nvwrite
@@ -54,6 +54,15 @@ $HOME/.local/bin/nvwrite
 
 `nvwrite` establece `NVIM_APPNAME=nvim-writing`. Por tanto `stdpath("config")`,
 `data`, `state` y `cache` quedan aislados del perfil de programación.
+
+`bin/install-links.zsh` implementa esa separación. Descubre el checkout desde su
+propia ruta, funciona aunque el repositorio esté en otro lugar y hace un dry-run
+por defecto. Antes de cambiar el filesystem inspecciona ambos destinos. Sólo
+crea los directorios padre ausentes y symlinks absolutos cuando se invoca con
+`--apply`; nunca elimina, mueve, renombra, sobrescribe o edita archivos del
+shell. Un destino ocupado, un symlink diferente o uno roto cancela toda la
+operación antes de crear enlaces. También rechaza un `HOME` o
+`XDG_CONFIG_HOME` que sea `/` o que resuelva ahí mediante symlinks.
 
 ## Invariantes
 
@@ -81,6 +90,8 @@ No se deben cambiar accidentalmente estas reglas:
     confina rutas/symlinks al webroot, valida el `Origin` del WebSocket, cierra
     todos sus clientes al detenerse y aplica una CSP sin scripts inline ni red
     externa.
+19. El instalador de enlaces es no destructivo, idempotente y hace preflight de
+    todos los destinos; no toca la configuración de programación ni `.zshrc`.
 
 ## Modelo de documentos y raíz
 
@@ -229,6 +240,13 @@ inesperados de paquetes externos; sus márgenes deben revisarse según el destin
 ## Organización interna
 
 ```text
+bin/
+├── nvwrite
+└── install-links.zsh
+tests/
+├── smoke.lua
+└── install-links.zsh
+
 lua/writing/
 ├── settings.lua
 ├── config/

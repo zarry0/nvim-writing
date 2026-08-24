@@ -1,6 +1,6 @@
 # Getting started
 
-## Instalación actual
+## Instalación
 
 Versión soportada y recomendada:
 
@@ -8,7 +8,7 @@ Versión soportada y recomendada:
 Neovim 0.12.4
 ```
 
-Ubicación sugerida del repositorio:
+Ubicación sugerida —no obligatoria— del repositorio:
 
 ```text
 $HOME/nvim-writing
@@ -17,22 +17,33 @@ $HOME/nvim-writing
 La instalación usa:
 
 ```text
-$HOME/.config/nvim-writing  -> repositorio
-$HOME/.local/bin/nvwrite    -> bin/nvwrite
+${XDG_CONFIG_HOME:-$HOME/.config}/nvim-writing  -> repositorio
+$HOME/.local/bin/nvwrite                          -> bin/nvwrite
 ```
 
-El lanzador fija Neovim 0.12.4 con ASDF solamente para este perfil. `nvim`
-continúa cargando la configuración de programación. Fuera de este repositorio
-también conserva la versión ASDF global; dentro del repositorio, `.tool-versions`
-selecciona 0.12.4 como es normal en ASDF.
+El lanzador solicita Neovim 0.12.4 mediante las variables de ASDF cuando el
+comando `asdf` está disponible. Eso afecta solamente a este perfil. `nvim`
+continúa cargando la configuración de programación y su versión habitual;
+dentro del repositorio, `.tool-versions` también selecciona 0.12.4.
 
-Instalación manual equivalente:
+La guía completa para una computadora nueva está en el
+[README](README.md#instalación-en-otra-computadora-macoslinux-zsh). Después de
+clonar e instalar las versiones de ASDF, ejecuta desde el checkout:
 
-```sh
-asdf install neovim 0.12.4
-asdf install tree-sitter 0.26.1
-ln -s /ruta/al/repo ~/.config/nvim-writing
-ln -s /ruta/al/repo/bin/nvwrite ~/.local/bin/nvwrite
+```zsh
+./bin/install-links.zsh
+./bin/install-links.zsh --apply
+```
+
+La primera orden sólo muestra el plan. La segunda crea los enlaces si ambos
+destinos están libres. El instalador nunca borra, mueve o sobrescribe contenido,
+no edita `.zshrc` y se detiene ante cualquier conflicto. También respeta
+`XDG_CONFIG_HOME`.
+
+Si `$HOME/.local/bin` no está en tu `PATH`, añade manualmente a `~/.zshrc`:
+
+```zsh
+export PATH="$HOME/.local/bin:$PATH"
 ```
 
 Dependencias externas:
@@ -55,6 +66,7 @@ Después ejecuta:
 ```vim
 :Lazy sync
 :Mason
+:TSUpdate
 :WriteHealth
 ```
 
@@ -278,8 +290,10 @@ Verifica el aislamiento:
 :lua print(vim.fn.stdpath("config"))
 ```
 
-Deben mostrar `nvim-writing` y `~/.config/nvim-writing`. Para problemas de
-actualización o rollback, sigue `docs/UPDATING.md`.
+Deben mostrar `nvim-writing` y el path de configuración efectivo:
+`$XDG_CONFIG_HOME/nvim-writing` si definiste esa variable, o
+`$HOME/.config/nvim-writing` en caso contrario. Para problemas de actualización
+o rollback, sigue `docs/UPDATING.md`.
 
 Desde el repositorio puedes repetir la prueba automatizada con:
 

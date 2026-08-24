@@ -60,7 +60,7 @@ bueno.
 
 5. Ejecuta la matriz de pruebas de abajo.
 6. Si pasa, actualiza juntos `bin/nvwrite`, `.tool-versions`, `settings.lua`,
-   `DESIGN.md` y `GETTING_STARTED.md`.
+   `README.md`, `DESIGN.md` y `GETTING_STARTED.md`.
 7. No desinstales la versión anterior hasta haber usado la nueva.
 
 Rollback: ejecuta `NVWRITE_NEOVIM_VERSION=VERSION_ANTERIOR nvwrite` y revierte el
@@ -106,21 +106,24 @@ imports o macros conocidos. Exit code 0 no sustituye la inspección visual.
 
 ## Matriz mínima
 
-1. `nvim` abre la configuración de programación y `nvwrite` esta configuración.
-2. Abrir una nota externa y probar spell español/inglés.
-3. Abrir Oil y un directorio externo.
-4. Crear/cambiar/cerrar tabpages; verificar `parent/file.ext` y múltiples splits.
-5. Probar archivos, grep, buffer y outline con fzf.
-6. Abrir LazyGit en un repositorio de prueba.
-7. Crear un proyecto Typst fuera del repo con `:WriteNew`.
-8. Preview y PDF desde Typst; preview y DOCX desde Markdown. En Markdown,
+1. Validar el instalador con `zsh -n bin/install-links.zsh` y
+   `zsh tests/install-links.zsh`: dry-run, aplicación, idempotencia, paths con
+   espacios, `XDG_CONFIG_HOME` y conflictos deben conservarse no destructivos.
+2. `nvim` abre la configuración de programación y `nvwrite` esta configuración.
+3. Abrir una nota externa y probar spell español/inglés.
+4. Abrir Oil y un directorio externo.
+5. Crear/cambiar/cerrar tabpages; verificar `parent/file.ext` y múltiples splits.
+6. Probar archivos, grep, buffer y outline con fzf.
+7. Abrir LazyGit en un repositorio de prueba.
+8. Crear un proyecto Typst fuera del repo con `:WriteNew`.
+9. Preview y PDF desde Typst; preview y DOCX desde Markdown. En Markdown,
    confirmar que el servidor usa `127.0.0.1`, un puerto efímero, bloquea path
    traversal y symlinks, rechaza WebSockets cross-origin, envía la CSP esperada
    y no conserva clientes al ejecutar `:WritePreviewStop`.
-9. Abrir `<leader>u`, recorrer una rama del undo tree nativo y cerrarlo.
-10. Registrar aparte Typst → DOCX como capacidad de mejor esfuerzo.
-11. Insertar una cita.
-12. Ejecutar `:WriteRoot`, `:WriteHealth`, `:checkhealth`,
+10. Abrir `<leader>u`, recorrer una rama del undo tree nativo y cerrarlo.
+11. Registrar aparte Typst → DOCX como capacidad de mejor esfuerzo.
+12. Insertar una cita.
+13. Ejecutar `:WriteRoot`, `:WriteHealth`, `:checkhealth`,
     `:checkhealth livepreview` y `tests/smoke.lua`.
 
 ## Rollback por capa
