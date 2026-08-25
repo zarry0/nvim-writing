@@ -17,6 +17,10 @@ for _, command in ipairs({
   "WriteTheme",
   "WriteGoogle",
   "WriteDictionary",
+  "WriteSpellAdd",
+  "WriteSpellRemove",
+  "WriteSpellIgnore",
+  "WriteSpellUnignore",
   "WriteFocus",
   "WriteHealth",
 }) do
@@ -31,8 +35,13 @@ assert_equal(vim.g.colors_name, "writing-monochrome-dark", "tema oscuro inicial"
 assert_equal(vim.o.background, "dark", "background oscuro")
 assert_equal(highlight("Normal").bg, 0x0D1117, "fondo oscuro")
 assert_equal(highlight("Normal").fg, 0xF0F0F0, "texto oscuro")
-assert_equal(highlight("SpellBad").sp, 0xD05858, "rojo del corrector")
+assert_equal(highlight("SpellBad").sp, 0xE17373, "rojo visible del corrector oscuro")
 assert(highlight("SpellBad").undercurl, "el corrector debe usar undercurl")
+assert_equal(highlight("DiagnosticUnderlineError").sp, 0xE17373, "ortografía LTeX roja en oscuro")
+for _, group in ipairs({ "SpellCap", "SpellRare", "SpellLocal" }) do
+  assert_equal(highlight(group).sp, 0xE17373, group .. " usa el mismo rojo visible")
+  assert(highlight(group).undercurl, group .. " debe usar undercurl")
+end
 assert_equal(highlight("@markup.heading.1.markdown").fg, 0x5079BE, "heading Markdown")
 assert_equal(highlight("@keyword.typst").fg, 0xB05CCC, "keyword Typst")
 assert_equal(highlight("@lsp.type.heading.typst").fg, 0x5079BE, "heading semántico Tinymist")
@@ -57,8 +66,16 @@ assert_equal(vim.o.background, "light", "background claro")
 assert_equal(highlight("Normal").bg, 0xFAFAFA, "fondo claro")
 assert_equal(highlight("Normal").fg, 0x20232A, "texto claro")
 assert_equal(highlight("SpellBad").sp, 0xD05858, "rojo del corrector claro")
+assert_equal(highlight("DiagnosticUnderlineError").sp, 0xD05858, "ortografía LTeX roja en claro")
 vim.cmd("WriteTheme toggle")
 assert_equal(vim.g.colors_name, "writing-monochrome-dark", "toggle vuelve al oscuro")
+
+local ltex_settings = vim.lsp.config.ltex_plus.settings.ltex
+assert_equal(ltex_settings.diagnosticSeverity.MORFOLOGIK_RULE_ES, "error", "ortografía LTeX española")
+assert_equal(ltex_settings.diagnosticSeverity.MORFOLOGIK_RULE_EN_US, "error", "ortografía LTeX inglesa")
+assert_equal(ltex_settings.diagnosticSeverity.default, "information", "otras reglas LTeX siguen neutrales")
+assert(type(ltex_settings.dictionary["es-ES"]) == "table", "diccionario LTeX español")
+assert(type(ltex_settings.dictionary["en-US"]) == "table", "diccionario LTeX inglés")
 
 for _, mapping in ipairs({
   { lhs = "<leader>wt", mode = "n" },
@@ -66,6 +83,16 @@ for _, mapping in ipairs({
   { lhs = "<leader>wg", mode = "x" },
   { lhs = "<leader>wd", mode = "n" },
   { lhs = "<leader>wd", mode = "x" },
+  { lhs = "<leader>ws", mode = "n" },
+  { lhs = "<leader>ws", mode = "x" },
+  { lhs = "<leader>wa", mode = "n" },
+  { lhs = "<leader>wa", mode = "x" },
+  { lhs = "<leader>wA", mode = "n" },
+  { lhs = "<leader>wA", mode = "x" },
+  { lhs = "<leader>wi", mode = "n" },
+  { lhs = "<leader>wi", mode = "x" },
+  { lhs = "<leader>wI", mode = "n" },
+  { lhs = "<leader>wI", mode = "x" },
 }) do
   assert(next(vim.fn.maparg(mapping.lhs, mapping.mode, false, true)) ~= nil, "falta mapping " .. mapping.lhs)
 end
@@ -121,6 +148,136 @@ vim.api.nvim_set_current_buf(lookup_source)
 vim.api.nvim_buf_delete(lookup_buffer, { force = true })
 vim.ui.open = original_ui_open
 vim.ui.select = original_ui_select
+
+local spell = require("writing.core.spell")
+local spell_source = vim.api.nvim_get_current_buf()
+local personal_root = vim.fn.tempname() .. "-nvim-writing-personal-wordlist"
+assert_equal(vim.fn.mkdir(personal_root, "p"), 1, "crear fixture de lista personal")
+local personal_path = vim.fs.joinpath(personal_root, "en.utf-8.add")
+assert_equal(vim.fn.writefile({}, personal_path), 0, "crear lista personal temporal")
+local personal_buffer = vim.api.nvim_create_buf(true, true)
+vim.api.nvim_set_current_buf(personal_buffer)
+vim.wo.spell = true
+vim.bo.spelllang = "es,en_us"
+spell.configure(personal_buffer)
+local configured_wordlists = vim.opt_local.spellfile:get()
+assert_equal(#configured_wordlists, 2, "dos listas para el modo bilingüe")
+assert(configured_wordlists[1]:match("/es%.utf%-8%.add$"), "español debe ser la primera lista bilingüe")
+assert(configured_wordlists[2]:match("/en%.utf%-8%.add$"), "inglés debe ser la segunda lista bilingüe")
+local original_spell_select = vim.ui.select
+local selected_personal_language = false
+vim.ui.select = function(items, _, on_choice)
+  selected_personal_language = #items == 2 and items[1].id == "es" and items[2].id == "en"
+  on_choice(nil)
+end
+assert(spell.add_personal("codexselectorzz"), "abrir selector de lista personal bilingüe")
+assert(selected_personal_language, "la lista bilingüe debe pedir ES o EN")
+vim.ui.select = original_spell_select
+vim.bo.spelllang = "en_us"
+vim.opt_local.spellfile = { personal_path }
+local personal_target = { id = "en", label = "English", ltex = "en-US", path = personal_path }
+local personal_word = "codexortograficozz"
+assert(not spell._test.personal_subject("injected/!"), "rechazar flags reservados de spellfile")
+assert(not spell._test.personal_subject("#comentario"), "rechazar comentarios reservados de spellfile")
+assert(
+  spell._test.run_spell_command(personal_buffer, "spellgood", personal_word, personal_target),
+  "añadir a una lista personal explícita"
+)
+assert(vim.tbl_contains(vim.fn.readfile(personal_path), personal_word), "la palabra no llegó a la lista personal")
+assert(
+  spell._test.run_spell_command(personal_buffer, "spellundo", personal_word, personal_target),
+  "retirar de una lista personal explícita"
+)
+assert(not vim.tbl_contains(vim.fn.readfile(personal_path), personal_word), "la palabra no salió de la lista personal")
+assert(spell._test.is_spelling_diagnostic({ code = "MORFOLOGIK_RULE_EN_US" }), "reconocer diagnóstico spelling")
+assert(
+  spell._test.is_spelling_diagnostic({ code = { value = "MORFOLOGIK_RULE_ES" } }),
+  "reconocer código spelling estructurado"
+)
+assert(not spell._test.is_spelling_diagnostic({ code = "UPPERCASE_SENTENCE_START" }), "preservar gramática LTeX")
+vim.api.nvim_set_current_buf(spell_source)
+vim.api.nvim_buf_delete(personal_buffer, { force = true })
+assert_equal(vim.fn.delete(personal_root, "rf"), 0, "limpieza de lista personal")
+
+local ignore_root = vim.fn.tempname() .. "-nvim-writing-file-ignore"
+assert_equal(vim.fn.mkdir(ignore_root, "p"), 1, "crear fixture de excepciones locales")
+local ignore_main = vim.fs.joinpath(ignore_root, "main.md")
+local ignore_other = vim.fs.joinpath(ignore_root, "other.md")
+assert_equal(vim.fn.writefile({ "qzxqzx word qzxqzx" }, ignore_main), 0, "crear documento principal")
+assert_equal(vim.fn.writefile({ "qzxqzx" }, ignore_other), 0, "crear segundo documento")
+local ignore_manifest = vim.fs.joinpath(ignore_root, ".writing.json")
+assert_equal(
+  vim.fn.writefile({ vim.json.encode({ schemaVersion = 1, main = "main.md", buildDir = "build" }) }, ignore_manifest),
+  0,
+  "crear manifest de excepciones"
+)
+local ignore_buffer = vim.fn.bufadd(ignore_main)
+vim.fn.bufload(ignore_buffer)
+vim.api.nvim_set_current_buf(ignore_buffer)
+vim.bo.filetype = "markdown"
+vim.wo.spell = true
+vim.bo.spelllang = "en_us"
+assert(spell.ignore_file("qzxqzx"), "ignorar palabra sólo en el archivo")
+local sidecar_path = vim.fs.joinpath(ignore_root, ".nvim-writing-spell.json")
+local sidecar = vim.json.decode(table.concat(vim.fn.readfile(sidecar_path), "\n"))
+assert_equal(sidecar.schemaVersion, 1, "schema del sidecar ortográfico")
+assert_equal(sidecar.files["main.md"][1], "qzxqzx", "excepción asociada al archivo")
+local marks = vim.api.nvim_buf_get_extmarks(ignore_buffer, spell.namespace, 0, -1, { details = true })
+assert_equal(#marks, 2, "una marca spell=false por ocurrencia")
+for _, mark in ipairs(marks) do
+  assert_equal(mark[4].spell, false, "la excepción debe desactivar spell en su rango")
+end
+vim.api.nvim_win_set_cursor(0, { 1, 0 })
+vim.cmd("redraw")
+assert_equal(vim.fn.spellbadword()[1], "", "spell nativo debe omitir la palabra en este archivo")
+
+local other_buffer = vim.fn.bufadd(ignore_other)
+vim.fn.bufload(other_buffer)
+vim.bo[other_buffer].filetype = "markdown"
+spell.load_file_ignores(other_buffer, true)
+assert_equal(
+  #vim.api.nvim_buf_get_extmarks(other_buffer, spell.namespace, 0, -1, {}),
+  0,
+  "la excepción no debe alcanzar otro archivo"
+)
+vim.api.nvim_set_current_buf(other_buffer)
+vim.wo.spell = true
+vim.bo.spelllang = "en_us"
+vim.api.nvim_win_set_cursor(0, { 1, 0 })
+vim.cmd("redraw")
+assert_equal(vim.fn.spellbadword()[1], "qzxqzx", "otro archivo debe conservar el error ortográfico")
+
+vim.api.nvim_set_current_buf(ignore_buffer)
+assert(spell.unignore_file("qzxqzx"), "retirar excepción local")
+assert_equal(#vim.api.nvim_buf_get_extmarks(ignore_buffer, spell.namespace, 0, -1, {}), 0, "retirar marcas locales")
+
+vim.api.nvim_buf_set_lines(ignore_buffer, 0, -1, false, { "C++ y .NET" })
+assert(spell.ignore_file("C++"), "ignorar término que termina en puntuación")
+assert(spell.ignore_file(".NET"), "ignorar término que empieza con puntuación")
+assert_equal(
+  #vim.api.nvim_buf_get_extmarks(ignore_buffer, spell.namespace, 0, -1, {}),
+  2,
+  "las excepciones con puntuación deben producir extmarks"
+)
+assert(spell.unignore_file("C++"), "retirar excepción C++")
+assert(spell.unignore_file(".NET"), "retirar excepción .NET")
+
+assert_equal(vim.fn.writefile({ "{ inválido" }, sidecar_path), 0, "crear sidecar inválido")
+local invalid_before = table.concat(vim.fn.readfile(sidecar_path), "\n")
+assert(not spell.ignore_file("qzxqzx"), "un sidecar inválido debe bloquear la escritura")
+assert_equal(table.concat(vim.fn.readfile(sidecar_path), "\n"), invalid_before, "no sobrescribir sidecar inválido")
+
+assert_equal(vim.fn.delete(sidecar_path), 0, "retirar sidecar inválido")
+local sentinel = vim.fs.joinpath(ignore_root, "sentinel.txt")
+assert_equal(vim.fn.writefile({ "conservar" }, sentinel), 0, "crear sentinel")
+assert(vim.uv.fs_symlink(sentinel, sidecar_path), "crear symlink de sidecar")
+assert(not spell.ignore_file("qzxqzx"), "un sidecar symlink debe bloquear la escritura")
+assert_equal(table.concat(vim.fn.readfile(sentinel), "\n"), "conservar", "no modificar destino del symlink")
+
+vim.api.nvim_set_current_buf(spell_source)
+vim.api.nvim_buf_delete(ignore_buffer, { force = true })
+vim.api.nvim_buf_delete(other_buffer, { force = true })
+assert_equal(vim.fn.delete(ignore_root, "rf"), 0, "limpieza de excepciones locales")
 
 local word_count = require("writing.core.word_count")
 assert_equal(word_count.count_words("canción Título Pérez café"), 4, "tokenización Unicode")
@@ -426,6 +583,9 @@ local markdown_main = vim.fs.joinpath(markdown_destination, "main.md")
 vim.cmd.bdelete({ bang = true })
 vim.api.nvim_cmd({ cmd = "edit", args = { markdown_main } }, {})
 assert_equal(vim.bo.spelllang, "en_us", "idioma Markdown persistido al reabrir")
+local persisted_wordlists = vim.opt_local.spellfile:get()
+assert_equal(#persisted_wordlists, 1, "el modeline inglés debe dejar una sola lista personal")
+assert(persisted_wordlists[1]:match("/en%.utf%-8%.add$"), "el modeline inglés debe seleccionar la lista EN")
 
 local preview = require("livepreview")
 local preview_config = require("livepreview.config")

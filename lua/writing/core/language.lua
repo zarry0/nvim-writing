@@ -16,21 +16,6 @@ function M.names()
   return { "es", "en", "both", "off" }
 end
 
-local function custom_wordlists(language)
-  local root = vim.fs.joinpath(vim.fn.stdpath("config"), "wordlists")
-  if language == "es" then
-    return vim.fs.joinpath(root, "es.utf-8.add")
-  elseif language == "en" then
-    return vim.fs.joinpath(root, "en.utf-8.add")
-  elseif language == "both" then
-    return table.concat({
-      vim.fs.joinpath(root, "es.utf-8.add"),
-      vim.fs.joinpath(root, "en.utf-8.add"),
-    }, ",")
-  end
-  return ""
-end
-
 local function notify_ltex(spec)
   local bufnr = vim.api.nvim_get_current_buf()
   local function update_client(client)
@@ -78,7 +63,7 @@ function M.apply(name)
   if spec.spell then
     vim.opt_local.spell = true
     vim.opt_local.spelllang = spec.spell
-    vim.opt_local.spellfile = custom_wordlists(name)
+    require("writing.core.spell").configure(0)
   else
     vim.opt_local.spell = false
     vim.opt_local.spellfile = ""

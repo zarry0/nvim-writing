@@ -167,7 +167,7 @@ local function document_highlights(p)
   set_many({ "@lsp.type.variable.typst", "@lsp.type.parameter.typst" }, { fg = p.fg })
 end
 
-local function base_highlights(p)
+local function base_highlights(p, variant)
   neutralize_late_plugin_groups(p)
   set("Normal", { fg = p.fg, bg = p.bg })
   set("NormalNC", { fg = p.fg, bg = p.bg })
@@ -221,13 +221,15 @@ local function base_highlights(p)
   set("Title", { fg = p.fg, bold = true })
   set("QuickFixLine", { bg = p.bg_alt, bold = true })
 
-  set_many({ "SpellBad", "SpellCap", "SpellRare", "SpellLocal" }, { undercurl = true, sp = "#D05858" })
+  local spell_red = variant == "dark" and "#E17373" or "#D05858"
+  set_many({ "SpellBad", "SpellCap", "SpellRare", "SpellLocal" }, { undercurl = true, sp = spell_red })
   set("DiagnosticError", { fg = p.fg, bold = true })
   set("DiagnosticWarn", { fg = p.fg })
   set("DiagnosticInfo", { fg = p.muted })
   set("DiagnosticHint", { fg = p.muted })
   set("DiagnosticOk", { fg = p.fg })
-  set_many({ "DiagnosticUnderlineError", "DiagnosticUnderlineWarn", "DiagnosticUnderlineInfo", "DiagnosticUnderlineHint" }, {
+  set("DiagnosticUnderlineError", { undercurl = true, sp = spell_red })
+  set_many({ "DiagnosticUnderlineWarn", "DiagnosticUnderlineInfo", "DiagnosticUnderlineHint" }, {
     undercurl = true,
     sp = p.muted,
   })
@@ -344,7 +346,7 @@ function M.apply(style)
   vim.o.background = p.background
   vim.cmd("highlight clear")
   vim.g.colors_name = M.name(style)
-  base_highlights(p)
+  base_highlights(p, style)
   document_highlights(p)
   terminal_colors(p)
 
@@ -366,7 +368,7 @@ end
 
 function M.refresh()
   local p = M.palette()
-  base_highlights(p)
+  base_highlights(p, vim.o.background)
   document_highlights(p)
   terminal_colors(p)
 end

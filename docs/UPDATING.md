@@ -120,7 +120,10 @@ reemplazarse por un conteo bruto del source.
    `zsh tests/install-links.zsh`: dry-run, aplicación, idempotencia, paths con
    espacios, `XDG_CONFIG_HOME` y conflictos deben conservarse no destructivos.
 2. `nvim` abre la configuración de programación y `nvwrite` esta configuración.
-3. Abrir una nota externa y probar spell español/inglés.
+3. Abrir una nota externa y probar spell español/inglés: `<leader>ws`, alta y
+   baja ES/EN con `<leader>wa/wA`, y excepción local con `<leader>wi/wI`. La
+   excepción sólo debe afectar su archivo; JSON inválido o symlink no debe
+   sobrescribirse. Verificar también que LTeX+ respete diccionarios y excepción.
 4. Abrir Oil y un directorio externo.
 5. Crear/cambiar/cerrar tabpages; verificar `parent/file.ext` y múltiples splits.
    La barra no debe mostrar número o branding y debe conservar `×` con dos o más
@@ -135,8 +138,8 @@ reemplazarse por un conteo bruto del source.
 10. Abrir `<leader>u`, recorrer una rama del undo tree nativo y cerrarlo.
 11. Ejecutar `:WriteTheme light`, `dark` y `toggle`: texto y UI deben permanecer
     monocromáticos, syntax documental usar los seis acentos, spell conservar
-    undercurl `#D05858`, cursor/números relativos seguir visibles e iconos de
-    Oil/fzf conservar glifo sin color propio.
+    undercurl `#E17373` oscuro/`#D05858` claro, cursor/números relativos seguir
+    visibles e iconos de Oil/fzf conservar glifo sin color propio.
 12. Verificar Lualine: modo, `parent/file.ext [+]`, conteo, idioma y progreso;
     no branch, diff, diagnósticos, LSP, filetype o location.
 13. Probar conteos exactos TXT/Markdown/Typst/LaTeX y la invalidación `~N` con

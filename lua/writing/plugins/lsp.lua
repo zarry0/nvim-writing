@@ -54,7 +54,12 @@ return {
         settings = {
           ltex = {
             language = settings.primary_ltex_language,
-            diagnosticSeverity = "information",
+            dictionary = require("writing.core.spell").ltex_dictionary(),
+            diagnosticSeverity = {
+              MORFOLOGIK_RULE_ES = "error",
+              MORFOLOGIK_RULE_EN_US = "error",
+              default = "information",
+            },
           },
         },
       })

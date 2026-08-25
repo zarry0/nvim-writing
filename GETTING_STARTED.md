@@ -210,6 +210,17 @@ La plantilla de guion prefiere Courier Prime y usa fallbacks si no está
 instalada. Instala esa fuente si necesitas métricas tipográficas de guion más
 predecibles entre equipos.
 
+Esta plantilla es código local de este repositorio, no un paquete de Typst
+Universe. `templates/typst/screenplay/main.typ` es el ejemplo de uso y
+`templates/typst/screenplay/screenplay.typ` es su API completa: `screenplay`,
+`scene`, `action`, `dialogue` y `transition`. Cada `:WriteNew` copia ambos
+archivos, por lo que el proyecto queda independiente de futuras modificaciones
+de la plantilla maestra. El formato actual cubre US Letter, márgenes, portada,
+Courier a 12 pt y numeración del cuerpo; no implementa todavía parentheticals,
+diálogo dual, `MORE`/`CONT'D` automático, escenas numeradas ni validación de
+personajes. Revísalo contra los requisitos concretos de la producción antes de
+considerarlo un formato profesional de entrega.
+
 ## Idiomas
 
 ```vim
@@ -242,9 +253,41 @@ principal y puede cambiarse por sección mediante magic comments. `off`
 desconecta LTeX+ del buffer además de apagar el corrector nativo; seleccionar
 otro idioma vuelve a conectarlo.
 
-Sobre una palabra, `zg` la añade a la lista personal portable del idioma actual;
-`zug` deshace esa adición. Esas listas viven en `wordlists/` y sí forman parte
-del repositorio Git de la configuración.
+### Sugerencias, diccionario personal y excepciones
+
+Coloca el cursor sobre una palabra o selecciona exactamente una palabra:
+
+| Acción | Binding | Comando |
+|---|---|---|
+| Mostrar correcciones (`z=` nativo) | `<Space>ws` | — |
+| Añadir al diccionario personal | `<Space>wa` | `:WriteSpellAdd [palabra]` |
+| Retirar del diccionario personal | `<Space>wA` | `:WriteSpellRemove [palabra]` |
+| Ignorar sólo en este archivo | `<Space>wi` | `:WriteSpellIgnore [palabra]` |
+| Volver a comprobar en este archivo | `<Space>wI` | `:WriteSpellUnignore [palabra]` |
+
+Los bindings funcionan en modo normal y visual. Con `both`, añadir o retirar
+abre un selector ES/EN para evitar que una palabra termine en la primera lista
+por accidente. Las listas `wordlists/es.utf-8.add` y
+`wordlists/en.utf-8.add` viven en este repositorio, son portables y también se
+sincronizan con el diccionario de LTeX+. Los comandos nativos `zg`/`zug` siguen
+disponibles, pero escriben en la primera entrada de `spellfile` salvo que se les
+dé un count; por eso se recomiendan los bindings `Write` cuando hay dos idiomas.
+
+`<Space>wi` no añade la palabra a ningún diccionario. Crea, sólo cuando se usa,
+`.nvim-writing-spell.json` en la raíz lógica del documento y guarda la excepción
+bajo la ruta relativa del archivo. La configuración desactiva spell únicamente
+en esas ocurrencias y filtra el diagnóstico ortográfico exacto de LTeX+ para ese
+buffer. Puedes versionar el sidecar junto con el proyecto si quieres compartir
+las decisiones editoriales; para un archivo suelto queda junto a ese archivo.
+Un sidecar inválido, demasiado grande, symlink o directorio se rechaza sin
+sobrescribirlo.
+
+Las palabras marcadas usan un undercurl rojo más visible: `#E17373` en oscuro y
+`#D05858` en claro. Las reglas ortográficas española e inglesa de LTeX+ se
+clasifican como error para que no superpongan un subrayado gris al rojo nativo;
+las demás reglas siguen como información neutral. Neovim solicita el estilo
+undercurl, pero la forma y grosor final dependen del emulador de terminal; un
+terminal sin soporte puede mostrar una línea recta.
 
 ## Citas
 

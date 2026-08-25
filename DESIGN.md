@@ -168,6 +168,10 @@ build, bibliografía o reference DOCX de la raíz.
 | `:WriteTheme [dark\|light\|toggle]` | Cambia el tema de la sesión |
 | `:WriteGoogle [consulta]` | Abre Google con argumento, palabra o selección |
 | `:WriteDictionary [es\|en] [consulta]` | Abre RAE/Merriam-Webster o selector |
+| `:WriteSpellAdd [palabra]` | Añade al diccionario personal del idioma elegido |
+| `:WriteSpellRemove [palabra]` | Retira del diccionario personal elegido |
+| `:WriteSpellIgnore [palabra]` | Ignora la palabra sólo en el archivo actual |
+| `:WriteSpellUnignore [palabra]` | Retira la excepción del archivo actual |
 | `:WriteFocus` | Alterna Snacks Zen |
 | `:WriteHealth` | Ejecuta el provider `checkhealth writing` |
 
@@ -183,6 +187,8 @@ Son API pública. Si se renombran, se deben actualizar mappings y ambos docs.
 | `<leader>wep/wed` | PDF, DOCX |
 | `<leader>wl/wc/wr/wf/wh/wt` | Idioma, cita, root, focus, health, theme |
 | `<leader>wg/wd` | Google y diccionario; normal o selección visual |
+| `<leader>ws/wa/wA` | Sugerencias, añadir y retirar del diccionario personal |
+| `<leader>wi/wI` | Ignorar y volver a comprobar sólo en el archivo actual |
 | `<leader>ff/fs/fc/fo` | Archivos, grep, config, outline |
 | `<leader>/` | Buscar en el buffer |
 | `<leader><leader>` | Buffers abiertos |
@@ -225,7 +231,8 @@ fg #20232A  muted #8790A0          faint #BAC3CB
 ```
 
 Ambas comparten los acentos `#D05858`, `#BE7E05`, `#608E32`, `#3A8B84`,
-`#5079BE` y `#B05CCC`. El rojo de spell es siempre `#D05858`. La base neutraliza
+`#5079BE` y `#B05CCC`. Spell usa un rojo más visible: `#E17373` en oscuro y
+`#D05858` en claro. La base neutraliza
 grupos genéricos de UI y código; los acentos documentales se definen con sufijo
 `.markdown`, `.markdown_inline`, `.typst` o `.latex`. No crear highlights para
 `@spell` o `@nospell`: son capturas de control y un `fg` allí puede ocultar las
@@ -274,6 +281,32 @@ fuente; sus índices `.add.spl` se regeneran localmente y están ignorados por G
 `WriteLanguage!` sólo reemplaza el comentario LTeX precedido por el sentinel
 `nvim-writing: managed-ltex`; los magic comments manuales dentro de secciones
 son contenido del usuario y deben preservarse.
+
+`writing.core.spell` ordena `spellfile` según los tokens efectivos de
+`spelllang`. `WriteSpellAdd/Remove` usa explícitamente la entrada ES o EN; si
+ambas están activas muestra un selector, y después sincroniza esas listas con
+`ltex.dictionary`. Esto evita la semántica nativa de `zg`, que sin count siempre
+escribe en la primera entrada.
+
+LTeX+ asigna `MORFOLOGIK_RULE_ES` y `MORFOLOGIK_RULE_EN_US` a severidad error,
+y `DiagnosticUnderlineError` usa el mismo rojo de `SpellBad`. El resto de reglas
+permanece en severidad information y con underline neutral; amarillo/azul no se
+asignan hasta definir una taxonomía editorial explícita por rule ID.
+
+Una excepción de archivo no usa `zG`: la lista interna de Neovim alcanzaría
+otros buffers y se perdería al salir. Se persiste en
+`<writing-root>/.nvim-writing-spell.json`, schema 1, como mapa de ruta relativa a
+palabras. Extmarks buffer-locales con `spell=false` cubren cada ocurrencia exacta
+y se recalculan tras editar; el handler de diagnósticos omite únicamente rangos
+LTeX+ cuyo texto coincide exactamente. El sidecar sólo se crea al solicitar una
+excepción, tiene límite de 64 KiB/1024 palabras por archivo y se publica mediante
+temporal adyacente. Los términos formados por caracteres de palabra se buscan en
+una sola pasada por línea; los que incluyen puntuación se limitan a 32 por
+archivo. Antes de publicar se compara otra vez el contenido leído, evitando
+pisar una actualización concurrente detectada. Rutas inseguras, JSON/schema
+inválido, archivos grandes, directorios y symlinks bloquean la operación sin ser
+reemplazados. `FocusGained` recarga cambios externos y resincroniza LTeX+ cuando
+la lista efectiva cambia.
 
 ## Conteo semántico de prosa
 
@@ -352,8 +385,12 @@ documentada.
 - `reference.docx`: estilos Word opcionales por proyecto.
 
 Las plantillas maestras bajo `templates/` se copian completas. Un proyecto nunca
-queda enlazado a ellas. La plantilla de guion es local para evitar cambios
-inesperados de paquetes externos; sus márgenes deben revisarse según el destino.
+queda enlazado a ellas. La plantilla de guion es una implementación local del
+repositorio, bajo su licencia MIT; no importa un paquete de Typst Universe. Su
+API pública actual es `screenplay`, `scene`, `action`, `dialogue` y `transition`.
+Se mantiene local para evitar cambios inesperados de paquetes externos, pero no
+se presenta como estándar profesional: sus márgenes y capacidades deben
+revisarse según el destino.
 
 ## Organización interna
 
@@ -379,6 +416,7 @@ lua/writing/
 │   ├── process.lua
 │   ├── templates.lua
 │   ├── language.lua
+│   ├── spell.lua
 │   ├── live_preview.lua
 │   ├── theme.lua
 │   ├── word_count.lua

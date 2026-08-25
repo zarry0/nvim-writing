@@ -11,6 +11,7 @@ guiones, citas y exportación PDF/DOCX.
 - Statusline: modo, archivo, prosa escrita, idioma y progreso.
 - Preview live: Markdown en navegador y Typst.
 - Undo: árbol nativo incluido en Neovim 0.12.4.
+- Ortografía: español/inglés, listas personales portables y excepciones por archivo.
 - Consultas: Google, RAE y Merriam-Webster desde palabra o selección.
 - Documentos: siempre fuera de este repositorio, salvo elección explícita.
 
@@ -140,7 +141,8 @@ nvwrite GETTING_STARTED.md
 
 Dentro de la guía, empieza con `<Space>?` para descubrir bindings. Los accesos
 nuevos más importantes son `<Space>wt` para alternar claro/oscuro,
-`<Space>wg` para buscar en Google y `<Space>wd` para consultar el diccionario.
+`<Space>wg` para buscar en Google, `<Space>wd` para consultar el diccionario y
+`<Space>ws/wa/wi` para sugerir, aceptar o ignorar una palabra localmente.
 La barra inferior cuenta prosa semántica de TXT, Markdown, Typst y LaTeX sin
 sumar código, fórmulas, URLs, claves de cita ni bibliografía generada.
 
