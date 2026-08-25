@@ -50,6 +50,7 @@ Dependencias externas:
 
 ```text
 git, typst, pandoc >= 3.10, fzf, rg, fd, lazygit, tree-sitter >= 0.26.1
+navegador + opener del sistema (xdg-open/gio en Linux)
 ```
 
 Mason gestiona Tinymist y LTeX+. El primer arranque necesita Internet para Lazy,
@@ -72,6 +73,49 @@ Después ejecuta:
 
 Si Mason acaba de instalar Tinymist, reinicia `nvwrite` antes del primer preview.
 Pulsa `<Space>?` para ver bindings. `<leader>` es espacio.
+
+## Tema y barra inferior
+
+El tema propio `writing-monochrome` arranca oscuro. Alterna cuando quieras:
+
+| Acción | Binding | Comando |
+|---|---|---|
+| Alternar claro/oscuro | `<Space>wt` | `:WriteTheme toggle` |
+| Usar oscuro | — | `:WriteTheme dark` |
+| Usar claro | — | `:WriteTheme light` |
+
+El cambio afecta sólo la sesión. Para cambiar el arranque, edita
+`theme_variant = "dark"` o `"light"` en `lua/writing/settings.lua`.
+
+La UI, los iconos de Oil/fzf y la barra son monocromáticos. El texto normal es
+claro sobre fondo oscuro o casi negro sobre fondo claro. Los seis acentos de la
+paleta se reservan para estructura/sintaxis de Markdown, Typst y LaTeX. Los
+errores ortográficos usan únicamente un subrayado ondulado rojo; el cursor y la
+línea actual permanecen visibles, y los números relativos siguen activos.
+
+La barra inferior contiene, de izquierda a derecha:
+
+```text
+MODO  parent/file.ext [+]        N palabras  ES|EN|ES+EN|OFF  progreso
+```
+
+`[+]` significa que el buffer tiene cambios sin guardar. El contador usa el
+contenido actual del buffer, incluso antes de `:w`, y calcula prosa semántica:
+
+- incluye títulos, autor, headings, párrafos, listas, citas, pies de figura
+  visibles y texto enfatizado;
+- excluye markup, comandos, código, fórmulas, URLs, alt text de imágenes inline
+  que no se renderiza, claves de cita, metadata técnica y bibliografía generada;
+- en TXT excluye la modeline administrada por el perfil.
+
+Para Markdown, Typst y LaTeX el cálculo se hace localmente con Pandoc por stdin,
+con 450 ms de debounce; no envía el documento a Internet. Cuenta el buffer
+actual, no todos los archivos del proyecto. Imports/includes se resuelven desde
+el directorio del archivo y sus cambios en otros buffers deben guardarse para
+participar. `~120 palabras` indica que ves el último resultado válido mientras
+se recalcula o después de un error; `… palabras` indica que aún no existe un
+resultado. La lectura de Typst de Pandoc es parcial, de modo que macros muy
+avanzadas pueden dejar el último conteo marcado con `~`.
 
 ## Archivos en cualquier ruta
 
@@ -217,6 +261,25 @@ Añade entradas a `references.bib`:
 Pulsa `<Space>wc` o ejecuta `:WriteCitation`. La inserción será `@clave` en
 Typst, `[@clave]` en Markdown y `\cite{clave}` en LaTeX.
 
+## Google y diccionarios
+
+Coloca el cursor sobre una palabra o selecciona una frase y usa:
+
+| Acción | Binding | Comando |
+|---|---|---|
+| Buscar en Google | `<Space>wg` | `:WriteGoogle [consulta]` |
+| Consultar definición | `<Space>wd` | `:WriteDictionary [es\|en] [consulta]` |
+
+En español se abre el Diccionario de la lengua española de la RAE; en inglés,
+Merriam-Webster. El idioma se infiere de `spelllang`. Si el documento usa ambos,
+está en `off` o no se reconoce, aparece un selector ES/EN. El texto se codifica
+como un componente URL y se abre mediante el navegador predeterminado, sin pasar
+por un shell ni cambiar el portapapeles.
+
+Estas acciones sí envían la palabra o selección al proveedor externo elegido.
+No las uses sobre texto sensible que no quieras compartir con Google, RAE o
+Merriam-Webster.
+
 ## Oil
 
 `<Space>e` o `-` abre Oil. Dentro de Oil:
@@ -234,7 +297,8 @@ guardar.
 ## Tabs nativas
 
 La barra superior representa tabpages reales. Cada tab conserva su layout de
-ventanas y muestra el buffer activo como `parent/file.ext`.
+ventanas y muestra el buffer activo como `parent/file.ext`. No muestra número ni
+branding; conserva `×` como botón de cierre cuando hay más de una tabpage.
 
 | Binding | Acción |
 |---|---|
@@ -268,6 +332,9 @@ en el directorio de estado aislado de `nvim-writing`.
 | `<Space>lg` | LazyGit en el root Git |
 | `<Space>gl` | Log de Git |
 | `<Space>wf` | Modo concentración |
+| `<Space>wt` | Alternar tema claro/oscuro |
+| `<Space>wg` | Buscar palabra/selección en Google |
+| `<Space>wd` | Consultar palabra/selección en diccionario |
 | `<Space>u` | Undo tree nativo |
 
 Gitsigns usa `]h`/`[h` para navegar hunks y el grupo `<Space>g` para acciones.

@@ -1,18 +1,28 @@
 local settings = require("writing.settings")
 
-local function prose_word_count()
-  if not vim.tbl_contains({ "text", "markdown", "typst", "tex", "plaintex" }, vim.bo.filetype) then
-    return ""
-  end
-  local count = vim.fn.wordcount()
-  return tostring(count.visual_words or count.words or 0) .. " palabras"
-end
-
 local function spell_language()
   if not vim.wo.spell then
-    return "spell off"
+    return "OFF"
   end
-  return vim.bo.spelllang:gsub("en_us", "EN"):gsub("es", "ES")
+  local languages = {}
+  for token in vim.bo.spelllang:gmatch("[^,]+") do
+    token = token:lower()
+    if token == "es" or token:match("^es[_-]") then
+      languages.ES = true
+    elseif token == "en" or token:match("^en[_-]") then
+      languages.EN = true
+    end
+  end
+  if languages.ES and languages.EN then
+    return "ES+EN"
+  end
+  if languages.ES then
+    return "ES"
+  end
+  if languages.EN then
+    return "EN"
+  end
+  return vim.bo.spelllang:upper()
 end
 
 local function tab_label(tabid)
@@ -35,29 +45,49 @@ local function tab_label(tabid)
   return parent ~= "" and (parent .. "/" .. filename) or filename
 end
 
+local function status_filename()
+  local label = tab_label(vim.api.nvim_get_current_tabpage())
+  if vim.bo.modified then
+    label = label .. " [+]"
+  end
+  return label
+end
+
+local function lualine_options()
+  return {
+    options = {
+      theme = require("writing.core.theme").lualine_theme(),
+      globalstatus = true,
+      icons_enabled = false,
+      component_separators = { left = "", right = "" },
+      section_separators = { left = "", right = "" },
+    },
+    sections = {
+      lualine_a = { "mode" },
+      lualine_b = {},
+      lualine_c = { status_filename },
+      lualine_x = { require("writing.core.word_count").status, spell_language },
+      lualine_y = { "progress" },
+      lualine_z = {},
+    },
+    inactive_sections = {
+      lualine_a = {},
+      lualine_b = {},
+      lualine_c = { status_filename },
+      lualine_x = {},
+      lualine_y = {},
+      lualine_z = {},
+    },
+    tabline = {},
+    extensions = {},
+  }
+end
+
 return {
-  {
-    "rebelot/kanagawa.nvim",
-    lazy = false,
-    priority = 1000,
-    config = function()
-      require("kanagawa").setup({
-        compile = false,
-        dimInactive = true,
-        commentStyle = { italic = true },
-      })
-      if settings.theme == "kanagawa" then
-        local ok = pcall(vim.cmd.colorscheme, "kanagawa-" .. settings.theme_variant)
-        if not ok then
-          vim.cmd.colorscheme("habamax")
-        end
-      end
-    end,
-  },
   {
     "nvim-tree/nvim-web-devicons",
     lazy = true,
-    opts = { default = true },
+    opts = { default = true, color_icons = false },
   },
   {
     "folke/snacks.nvim",
@@ -118,21 +148,20 @@ return {
         current = "TabLineSel",
         inactive = "TabLine",
       }
+      require("tabby.feature.tab_name").set_default_option({ name_fallback = tab_label })
       require("tabby").setup({
         line = function(line)
           return {
             line.tabs().foreach(function(tab)
               local hl = tab.is_current() and theme.current or theme.inactive
               return {
-                { " " .. tab.number() .. " ", hl = hl },
-                { tab.name(), hl = hl },
+                { " " .. tab.name(), hl = hl },
                 tab.close_btn(" × "),
                 hl = hl,
                 margin = " ",
               }
             end),
             line.spacer(),
-            { " nvim-writing ", hl = theme.inactive },
             hl = theme.fill,
           }
         end,
@@ -147,24 +176,13 @@ return {
     "nvim-lualine/lualine.nvim",
     event = "VeryLazy",
     dependencies = { "nvim-tree/nvim-web-devicons" },
-    opts = {
-      options = {
-        theme = "auto",
-        globalstatus = true,
-        component_separators = { left = "", right = "" },
-        section_separators = { left = "", right = "" },
-      },
-      sections = {
-        lualine_a = { "mode" },
-        lualine_b = { "branch", "diff", "diagnostics" },
-        lualine_c = { { "filename", path = 4 } },
-        lualine_x = { prose_word_count, spell_language, "lsp_status", "filetype" },
-        lualine_y = { "progress" },
-        lualine_z = { "location" },
-      },
-      tabline = {},
-      extensions = { "lazy", "mason", "oil", "quickfix" },
-    },
+    config = function()
+      local lualine = require("lualine")
+      lualine.setup(lualine_options())
+      require("writing.core.theme").on_change(function()
+        lualine.setup(lualine_options())
+      end)
+    end,
   },
   {
     "folke/which-key.nvim",

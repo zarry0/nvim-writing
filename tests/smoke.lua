@@ -14,11 +14,308 @@ for _, command in ipairs({
   "WriteExport",
   "WriteLanguage",
   "WriteCitation",
+  "WriteTheme",
+  "WriteGoogle",
+  "WriteDictionary",
   "WriteFocus",
   "WriteHealth",
 }) do
   assert_equal(vim.fn.exists(":" .. command), 2, "comando " .. command)
 end
+
+local function highlight(name)
+  return vim.api.nvim_get_hl(0, { name = name, link = false })
+end
+
+assert_equal(vim.g.colors_name, "writing-monochrome-dark", "tema oscuro inicial")
+assert_equal(vim.o.background, "dark", "background oscuro")
+assert_equal(highlight("Normal").bg, 0x0D1117, "fondo oscuro")
+assert_equal(highlight("Normal").fg, 0xF0F0F0, "texto oscuro")
+assert_equal(highlight("SpellBad").sp, 0xD05858, "rojo del corrector")
+assert(highlight("SpellBad").undercurl, "el corrector debe usar undercurl")
+assert_equal(highlight("@markup.heading.1.markdown").fg, 0x5079BE, "heading Markdown")
+assert_equal(highlight("@keyword.typst").fg, 0xB05CCC, "keyword Typst")
+assert_equal(highlight("@lsp.type.heading.typst").fg, 0x5079BE, "heading semántico Tinymist")
+assert_equal(highlight("@function.macro.latex").fg, 0x5079BE, "macro LaTeX")
+assert_equal(highlight("Added").fg, 0x8B949E, "grupo Added neutral")
+assert(next(highlight("@spell")) == nil, "@spell no debe tapar el highlighting documental")
+assert(vim.wo.relativenumber, "los números relativos deben permanecer activos")
+assert(vim.o.guicursor:match("i%-ci%-ve:ver25"), "cursor de inserción visible")
+for _, parser in ipairs({ "markdown", "markdown_inline", "typst", "latex", "bibtex" }) do
+  assert(#vim.api.nvim_get_runtime_file("parser/" .. parser .. ".so", false) > 0, "falta parser " .. parser)
+end
+assert_equal(vim.treesitter.language.get_lang("plaintex"), "latex", "plaintex usa parser LaTeX")
+local plaintex_buffer = vim.api.nvim_create_buf(true, true)
+vim.api.nvim_buf_set_lines(plaintex_buffer, 0, -1, false, { "Texto \\textbf{visible}." })
+vim.bo[plaintex_buffer].filetype = "plaintex"
+assert(pcall(vim.treesitter.start, plaintex_buffer), "Treesitter debe iniciar en plaintex")
+vim.api.nvim_buf_delete(plaintex_buffer, { force = true })
+
+vim.cmd("WriteTheme light")
+assert_equal(vim.g.colors_name, "writing-monochrome-light", "tema claro")
+assert_equal(vim.o.background, "light", "background claro")
+assert_equal(highlight("Normal").bg, 0xFAFAFA, "fondo claro")
+assert_equal(highlight("Normal").fg, 0x20232A, "texto claro")
+assert_equal(highlight("SpellBad").sp, 0xD05858, "rojo del corrector claro")
+vim.cmd("WriteTheme toggle")
+assert_equal(vim.g.colors_name, "writing-monochrome-dark", "toggle vuelve al oscuro")
+
+for _, mapping in ipairs({
+  { lhs = "<leader>wt", mode = "n" },
+  { lhs = "<leader>wg", mode = "n" },
+  { lhs = "<leader>wg", mode = "x" },
+  { lhs = "<leader>wd", mode = "n" },
+  { lhs = "<leader>wd", mode = "x" },
+}) do
+  assert(next(vim.fn.maparg(mapping.lhs, mapping.mode, false, true)) ~= nil, "falta mapping " .. mapping.lhs)
+end
+
+local lookup = require("writing.core.lookup")
+assert_equal(
+  lookup.encode_component("canción & café/te?#%"),
+  "canci%C3%B3n%20%26%20caf%C3%A9%2Fte%3F%23%25",
+  "percent encoding RFC3986"
+)
+local original_ui_open = vim.ui.open
+local original_ui_select = vim.ui.select
+local opened_url
+vim.ui.open = function(url)
+  opened_url = url
+  return {}, nil
+end
+assert(lookup.google("canción & café/te"), "consulta Google")
+assert_equal(
+  opened_url,
+  "https://www.google.com/search?q=canci%C3%B3n%20%26%20caf%C3%A9%2Fte",
+  "URL Google"
+)
+
+local lookup_source = vim.api.nvim_get_current_buf()
+local lookup_buffer = vim.api.nvim_create_buf(true, true)
+vim.api.nvim_set_current_buf(lookup_buffer)
+vim.api.nvim_buf_set_lines(lookup_buffer, 0, -1, false, { "canción &", "café/te" })
+vim.api.nvim_win_set_cursor(0, { 1, 0 })
+vim.cmd("normal! vj$")
+assert_equal(lookup.subject(true), "canción & café/te", "consulta desde selección multilínea")
+vim.cmd("normal! v")
+vim.wo.spell = true
+vim.bo.spelllang = "en_us"
+assert(lookup.dictionary(nil, "colour"), "diccionario inglés inferido")
+assert_equal(opened_url, "https://www.merriam-webster.com/dictionary/colour", "URL Merriam-Webster")
+vim.bo.spelllang = "es,en_us"
+vim.ui.select = function(items, _, on_choice)
+  on_choice(items[1])
+end
+assert(lookup.dictionary(nil, "palabra"), "selector de diccionario bilingüe")
+assert_equal(opened_url, "https://dle.rae.es/palabra", "URL RAE")
+local selected_when_spell_off = false
+vim.wo.spell = false
+vim.ui.select = function(items, _, on_choice)
+  selected_when_spell_off = true
+  on_choice(items[2])
+end
+assert(lookup.dictionary(nil, "word"), "selector de diccionario con spell apagado")
+assert(selected_when_spell_off, "spell off no debe inferir el spelllang residual")
+assert_equal(opened_url, "https://www.merriam-webster.com/dictionary/word", "URL elegida con spell off")
+vim.api.nvim_set_current_buf(lookup_source)
+vim.api.nvim_buf_delete(lookup_buffer, { force = true })
+vim.ui.open = original_ui_open
+vim.ui.select = original_ui_select
+
+local word_count = require("writing.core.word_count")
+assert_equal(word_count.count_words("canción Título Pérez café"), 4, "tokenización Unicode")
+assert_equal(word_count.count_words("uno—dos"), 2, "puntuación entre palabras")
+local original_iskeyword = vim.bo.iskeyword
+vim.bo.iskeyword = "a-z"
+assert_equal(word_count.count_words("canción Título Pérez café"), 4, "tokenización independiente de iskeyword")
+vim.bo.iskeyword = original_iskeyword
+local function compute_prose(filetype, source, cwd)
+  local finished = false
+  local result
+  local failure
+  word_count.compute(filetype, source, cwd, function(count, error_message)
+    result = count
+    failure = error_message
+    finished = true
+  end)
+  assert(vim.wait(5000, function()
+    return finished
+  end, 10), "timeout del contador " .. filetype)
+  assert(not failure, "falló el contador " .. filetype .. ": " .. tostring(failure))
+  return result
+end
+
+assert_equal(
+  compute_prose("text", "uno—dos\nvim: una frase real:\nvim: set spell spelllang=es :\n", vim.uv.cwd()),
+  6,
+  "conteo TXT conserva prosa parecida a una modeline"
+)
+local markdown_prose = [[
+---
+title: Título visible
+author: Ana Pérez
+keywords:
+  - secreto_oculto
+---
+
+# Uno dos
+
+Texto **tres cuatro** con [cinco](https://example.invalid) y `código oculto`.
+
+$$x + y = z$$
+
+![alternativa oculta](imagen.png)
+
+Cita [@clave_oculta].
+
+```lua
+código oculto
+```
+]]
+assert_equal(compute_prose("markdown", markdown_prose, vim.uv.cwd()), 15, "prosa Markdown renderizada")
+local markdown_metadata = [[
+---
+title: Título principal
+subtitle: Subtítulo visible
+author: Ana Pérez
+date: 2026
+abstract: Resumen visible escrito
+keywords: [secreto, oculto]
+---
+
+Cuerpo final.
+]]
+assert_equal(compute_prose("markdown", markdown_metadata, vim.uv.cwd()), 12, "metadata visible Markdown")
+assert_equal(
+  compute_prose("markdown", "Antes ![alt oculto](imagen.png) después.\n", vim.uv.cwd()),
+  2,
+  "alt inline no renderizado"
+)
+assert_equal(
+  compute_prose("markdown", "![Pie visible escrito](imagen.png)\n", vim.uv.cwd()),
+  3,
+  "caption Markdown visible"
+)
+local markdown_structures = [[
+1. uno dos
+2. tres cuatro
+
+Texto con nota[^1].
+
+[^1]: cinco seis
+]]
+assert_equal(
+  compute_prose("markdown", markdown_structures, vim.uv.cwd()),
+  9,
+  "listas y notas no cuentan sus marcadores"
+)
+
+local latex_prose = [[
+\documentclass{article}
+\title{Título visible}
+\author{Ana Pérez}
+\begin{document}
+\maketitle
+\section{Primera parte}
+Hola, mundo. Texto \textbf{fuerte}.
+\cite{clave_oculta}
+\label{etiqueta_oculta}
+\[ x + y = z \]
+\begin{verbatim}
+código oculto
+\end{verbatim}
+\end{document}
+]]
+assert_equal(compute_prose("tex", latex_prose, vim.uv.cwd()), 10, "prosa LaTeX renderizada")
+assert_equal(
+  compute_prose("typst", "#figure([Texto visible dentro], caption: [Pie visible])\n", vim.uv.cwd()),
+  5,
+  "contenido y caption de figura Typst"
+)
+
+local count_buffer = vim.api.nvim_create_buf(true, true)
+vim.api.nvim_set_current_buf(count_buffer)
+vim.bo.filetype = "text"
+vim.api.nvim_buf_set_lines(count_buffer, 0, -1, false, { "una dos" })
+local count_finished = false
+word_count.refresh(count_buffer, function()
+  count_finished = true
+end)
+assert(vim.wait(1000, function()
+  return count_finished
+end, 10), "conteo inicial del statusline")
+assert_equal(word_count.status(), "2 palabras", "statusline con conteo fresco")
+vim.api.nvim_buf_set_lines(count_buffer, 0, -1, false, { "una dos—tres" })
+word_count.schedule(count_buffer, 10000)
+assert_equal(word_count.status(), "~2 palabras", "statusline marca el último conteo como pendiente")
+vim.api.nvim_set_current_buf(lookup_source)
+vim.api.nvim_buf_delete(count_buffer, { force = true })
+
+local filetype_buffer = vim.api.nvim_create_buf(true, true)
+vim.api.nvim_set_current_buf(filetype_buffer)
+vim.api.nvim_buf_set_lines(filetype_buffer, 0, -1, false, { "visible [etiqueta](https://oculto.example)" })
+vim.bo.filetype = "text"
+word_count.schedule(filetype_buffer, 0)
+assert(vim.wait(1000, function()
+  local count, error_message, stale = word_count.last(filetype_buffer)
+  return count == 5 and not error_message and not stale
+end, 10), "conteo TXT para probar cambio de filetype")
+vim.bo.filetype = "markdown"
+assert(vim.wait(5000, function()
+  local count, error_message, stale = word_count.last(filetype_buffer)
+  return count == 2 and not error_message and not stale
+end, 10), "el caché debe incluir el filetype")
+vim.api.nvim_set_current_buf(lookup_source)
+vim.api.nvim_buf_delete(filetype_buffer, { force = true })
+
+local dependency_root = vim.fn.tempname() .. "-nvim-writing-count-dependency"
+assert_equal(vim.fn.mkdir(dependency_root, "p"), 1, "crear fixture de dependencia")
+local dependency_main = vim.fs.joinpath(dependency_root, "main.typ")
+local dependency_part = vim.fs.joinpath(dependency_root, "part.typ")
+assert_equal(
+  vim.fn.writefile({ '#import "part.typ": part', "#part" }, dependency_main),
+  0,
+  "crear main del contador"
+)
+assert_equal(vim.fn.writefile({ "#let part = [uno dos]" }, dependency_part), 0, "crear import del contador")
+local dependency_main_buffer = vim.fn.bufadd(dependency_main)
+vim.fn.bufload(dependency_main_buffer)
+vim.bo[dependency_main_buffer].filetype = "typst"
+word_count.schedule(dependency_main_buffer, 0)
+assert(vim.wait(5000, function()
+  local count, error_message, stale = word_count.last(dependency_main_buffer)
+  return count == 2 and not error_message and not stale
+end, 10), "conteo inicial con import Typst")
+local unchanged_main_tick = vim.api.nvim_buf_get_changedtick(dependency_main_buffer)
+
+local dependency_part_buffer = vim.fn.bufadd(dependency_part)
+vim.fn.bufload(dependency_part_buffer)
+vim.bo[dependency_part_buffer].filetype = "typst"
+vim.api.nvim_set_current_buf(dependency_part_buffer)
+vim.api.nvim_buf_set_lines(dependency_part_buffer, 0, -1, false, { "#let part = [uno dos tres]" })
+vim.cmd.write()
+assert_equal(
+  vim.api.nvim_buf_get_changedtick(dependency_main_buffer),
+  unchanged_main_tick,
+  "el main no cambió al guardar el import"
+)
+vim.api.nvim_set_current_buf(dependency_main_buffer)
+assert(vim.wait(5000, function()
+  local count, error_message, stale = word_count.last(dependency_main_buffer)
+  return count == 3 and not error_message and not stale
+end, 10), "BufWritePost debe invalidar dependencias cacheadas")
+
+vim.api.nvim_buf_set_lines(dependency_main_buffer, 0, -1, false, { "#let =" })
+word_count.schedule(dependency_main_buffer, 0)
+assert(vim.wait(5000, function()
+  local count, error_message, stale = word_count.last(dependency_main_buffer)
+  return count == 3 and error_message ~= nil and stale
+end, 10), "un error de parse debe conservar el último conteo como stale")
+assert_equal(word_count.status(), "~3 palabras", "statusline después de un error de parse")
+vim.api.nvim_set_current_buf(lookup_source)
+vim.api.nvim_buf_delete(dependency_main_buffer, { force = true })
+vim.api.nvim_buf_delete(dependency_part_buffer, { force = true })
+assert_equal(vim.fn.delete(dependency_root, "rf"), 0, "limpieza del fixture de dependencia")
 
 local undo_map = vim.fn.maparg("<leader>u", "n", false, true)
 assert(next(undo_map) ~= nil, "falta el binding del undo tree nativo")
@@ -42,8 +339,39 @@ assert_equal(context.root_source, "writing-json", "prioridad del manifest")
 assert(context.main:match("/templates/typst/essay/main%.typ$"), "main Typst incorrecto")
 assert(context.build_dir:match("/templates/typst/essay/build$"), "build incorrecto")
 assert_equal(#context.errors, 0, "contexto válido")
+assert_equal(
+  compute_prose("typst", table.concat(vim.fn.readfile(essay), "\n"), vim.fs.dirname(essay)),
+  32,
+  "prosa Typst renderizada"
+)
 
 assert_equal(vim.fn.exists(":Oil"), 2, "Oil disponible")
+
+require("lazy").load({ plugins = { "lualine.nvim" } })
+local lualine_config = require("lualine.config").get_config()
+assert(not lualine_config.options.icons_enabled, "Lualine debe ser textual y mínima")
+assert_equal(#lualine_config.sections.lualine_a, 1, "Lualine: modo")
+assert_equal(#lualine_config.sections.lualine_b, 0, "Lualine: sección B vacía")
+assert_equal(#lualine_config.sections.lualine_c, 1, "Lualine: archivo")
+assert_equal(#lualine_config.sections.lualine_x, 2, "Lualine: palabras e idioma")
+assert_equal(#lualine_config.sections.lualine_y, 1, "Lualine: progreso")
+assert_equal(#lualine_config.sections.lualine_z, 0, "Lualine: sección Z vacía")
+assert_equal(#lualine_config.extensions, 0, "Lualine sin extensiones que añadan contenido")
+vim.cmd("WriteTheme light")
+lualine_config = require("lualine.config").get_config()
+assert_equal(lualine_config.options.theme.normal.a.bg, "#E8EBF0", "Lualine cambia al tema claro")
+vim.cmd("WriteTheme dark")
+lualine_config = require("lualine.config").get_config()
+assert_equal(lualine_config.options.theme.normal.a.bg, "#21262D", "Lualine vuelve al tema oscuro")
+local _, icon_highlight = require("nvim-web-devicons").get_icon("main.typ", "typ", { default = true })
+assert_equal(icon_highlight, "DevIconDefault", "iconos monocromáticos")
+require("lazy").load({ plugins = { "fzf-lua" } })
+require("fzf-lua").setup_highlights(true)
+require("writing.core.theme").refresh()
+assert_equal(highlight("FzfLuaBufFlagCur").fg, 0x8B949E, "flag de fzf monocromático")
+assert_equal(highlight("FzfLuaPathLineNr").fg, 0x8B949E, "línea de fzf monocromática")
+assert_equal(highlight("FzfLuaLivePrompt").fg, 0x8B949E, "prompt de fzf monocromático")
+assert_equal(highlight("fzf1").fg, 0x8B949E, "paleta terminal de fzf monocromática")
 
 local initial_tabs = vim.fn.tabpagenr("$")
 vim.cmd.tabnew()
@@ -56,6 +384,19 @@ local created, create_error = require("writing.core.templates").create("essay", 
 assert(created, create_error)
 assert(vim.uv.fs_stat(vim.fs.joinpath(destination, "main.typ")), "WriteNew no copió main.typ")
 assert(vim.uv.fs_stat(vim.fs.joinpath(destination, ".writing.json")), "WriteNew no copió el manifest")
+assert_equal(
+  require("tabby.feature.tab_name").get(0),
+  vim.fs.basename(destination) .. "/main.typ",
+  "Tabby usa parent/file.ext"
+)
+vim.cmd.tabnew()
+vim.cmd.tabprevious()
+assert_equal(vim.o.tabline, "%!TabbyRenderTabline()", "Tabby usa el renderer moderno configurado")
+local rendered_tabline = vim.fn.TabbyRenderTabline()
+assert(rendered_tabline:find("×", 1, true), "Tabby conserva el botón de cierre")
+assert(not rendered_tabline:find(" nvim-writing ", 1, true), "Tabby no debe mostrar branding")
+vim.cmd.tabnext()
+vim.cmd.tabclose()
 local original_select = vim.ui.select
 vim.ui.select = function(items, _, on_choice)
   on_choice(items[1])

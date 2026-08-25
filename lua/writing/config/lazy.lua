@@ -19,7 +19,7 @@ vim.opt.rtp:prepend(lazypath)
 require("lazy").setup({
   spec = { { import = "writing.plugins" } },
   defaults = { lazy = true },
-  install = { colorscheme = { "kanagawa-wave", "habamax" } },
+  install = { colorscheme = { "habamax" } },
   checker = { enabled = false },
   change_detection = { notify = false },
   lockfile = vim.fn.stdpath("config") .. "/lazy-lock.json",

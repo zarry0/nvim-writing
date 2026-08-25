@@ -10,6 +10,12 @@ local function version_of(executable)
   return vim.split(result.stdout or "", "\n", { trimempty = true })[1]
 end
 
+local function meets_minimum(version_line, minimum)
+  local version_string = version_line and version_line:match("%d+%.%d+%.?%d*")
+  local parsed = version_string and vim.version.parse(version_string) or nil
+  return parsed ~= nil and vim.version.ge(parsed, minimum)
+end
+
 function M.check()
   vim.health.start("nvim-writing")
 
@@ -30,14 +36,50 @@ function M.check()
   vim.health.info("state: " .. vim.fn.stdpath("state"))
   vim.health.info("cache: " .. vim.fn.stdpath("cache"))
 
-  for _, executable in ipairs({ "git", "typst", "pandoc", "fzf", "rg", "fd", "lazygit", "tree-sitter" }) do
+  for _, requirement in ipairs({
+    { name = "git", critical = true },
+    { name = "typst", critical = true },
+    { name = "pandoc", critical = true, minimum = { 3, 10, 0 }, label = "3.10" },
+    { name = "tree-sitter", critical = true, minimum = { 0, 26, 1 }, label = "0.26.1" },
+    { name = "fzf" },
+    { name = "rg" },
+    { name = "fd" },
+    { name = "lazygit" },
+  }) do
+    local executable = requirement.name
     if vim.fn.executable(executable) == 1 then
-      vim.health.ok(executable .. ": " .. (version_of(executable) or "instalado"))
+      local version_line = version_of(executable)
+      if requirement.minimum and not meets_minimum(version_line, requirement.minimum) then
+        vim.health.error(
+          executable .. " debe ser >= " .. requirement.label .. "; detectado: " .. (version_line or "desconocido")
+        )
+      else
+        vim.health.ok(executable .. ": " .. (version_line or "instalado"))
+      end
     else
-      local critical = executable == "git" or executable == "typst"
-      local report = critical and vim.health.error or vim.health.warn
+      local report = requirement.critical and vim.health.error or vim.health.warn
       report("No se encontró " .. executable)
     end
+  end
+
+  local prose_filter = vim.fs.joinpath(vim.fn.stdpath("config"), "scripts", "pandoc-prose.lua")
+  if vim.uv.fs_stat(prose_filter) then
+    vim.health.ok("Filtro del contador semántico disponible")
+  else
+    vim.health.error("Falta scripts/pandoc-prose.lua")
+  end
+
+  local opener
+  for _, candidate in ipairs(vim.fn.has("mac") == 1 and { "open" } or { "xdg-open", "gio" }) do
+    if vim.fn.executable(candidate) == 1 then
+      opener = candidate
+      break
+    end
+  end
+  if opener then
+    vim.health.ok("Opener del navegador: " .. opener)
+  else
+    vim.health.warn("No se encontró un opener del navegador (xdg-open/gio en Linux)")
   end
 
   for _, executable in ipairs({ "tinymist", "ltex-ls-plus" }) do

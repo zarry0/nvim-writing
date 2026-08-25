@@ -14,6 +14,7 @@ return {
         files = { formatter = "path.filename_first", cwd_prompt = false },
         fzf_colors = true,
       })
+      require("writing.core.theme").refresh()
       fzf.register_ui_select()
     end,
     keys = {

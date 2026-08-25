@@ -12,6 +12,7 @@ opt.encoding = "utf-8"
 opt.expandtab = true
 opt.exrc = false
 opt.hidden = true
+opt.guicursor = "n-v-c:block,i-ci-ve:ver25,r-cr:hor20,o:hor50"
 opt.ignorecase = true
 opt.inccommand = "split"
 opt.incsearch = true

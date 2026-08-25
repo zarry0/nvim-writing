@@ -81,7 +81,9 @@ restaura/revierte `lazy-lock.json` y ejecuta `:Lazy restore`. No uses
 
 Cuando cambie nvim-treesitter, ejecuta `:TSUpdate` en la misma actualización del
 plugin porque sus parsers y queries deben coincidir. Registra también la versión
-mínima requerida de `tree-sitter-cli`.
+mínima requerida de `tree-sitter-cli`. Verifica capturas calificadas en los cinco
+parsers declarados: Markdown, Markdown inline, Typst, LaTeX y BibTeX. Una captura
+genérica nueva no debe introducir acentos fuera de Markdown/Typst/LaTeX.
 
 `live-preview.nvim` requiere atención especial: `writing.core.live_preview`
 envuelve las APIs internas `Server:routes`, `handler.serve_file` y
@@ -104,6 +106,14 @@ Al actualizar Pandoc, genera Markdown → DOCX y prueba Typst → DOCX; abre los
 resultados en Word o LibreOffice. Registra si el lector parcial sigue rechazando
 imports o macros conocidos. Exit code 0 no sustituye la inspección visual.
 
+Pandoc también alimenta el contador semántico mediante
+`scripts/pandoc-prose.lua`. Antes de aceptar una actualización, ejecuta los
+fixtures exactos del smoke y confirma que metadata técnica, código, math, URLs,
+alt text inline, claves de cita y bibliografía generada siguen excluidos, y que
+los pies de figura visibles sí cuentan. Prueba stdin
+sin guardar, imports relativos y un error de parse: debe conservarse `~N`, no
+reemplazarse por un conteo bruto del source.
+
 ## Matriz mínima
 
 1. Validar el instalador con `zsh -n bin/install-links.zsh` y
@@ -113,6 +123,8 @@ imports o macros conocidos. Exit code 0 no sustituye la inspección visual.
 3. Abrir una nota externa y probar spell español/inglés.
 4. Abrir Oil y un directorio externo.
 5. Crear/cambiar/cerrar tabpages; verificar `parent/file.ext` y múltiples splits.
+   La barra no debe mostrar número o branding y debe conservar `×` con dos o más
+   tabs.
 6. Probar archivos, grep, buffer y outline con fzf.
 7. Abrir LazyGit en un repositorio de prueba.
 8. Crear un proyecto Typst fuera del repo con `:WriteNew`.
@@ -121,9 +133,20 @@ imports o macros conocidos. Exit code 0 no sustituye la inspección visual.
    traversal y symlinks, rechaza WebSockets cross-origin, envía la CSP esperada
    y no conserva clientes al ejecutar `:WritePreviewStop`.
 10. Abrir `<leader>u`, recorrer una rama del undo tree nativo y cerrarlo.
-11. Registrar aparte Typst → DOCX como capacidad de mejor esfuerzo.
-12. Insertar una cita.
-13. Ejecutar `:WriteRoot`, `:WriteHealth`, `:checkhealth`,
+11. Ejecutar `:WriteTheme light`, `dark` y `toggle`: texto y UI deben permanecer
+    monocromáticos, syntax documental usar los seis acentos, spell conservar
+    undercurl `#D05858`, cursor/números relativos seguir visibles e iconos de
+    Oil/fzf conservar glifo sin color propio.
+12. Verificar Lualine: modo, `parent/file.ext [+]`, conteo, idioma y progreso;
+    no branch, diff, diagnósticos, LSP, filetype o location.
+13. Probar conteos exactos TXT/Markdown/Typst/LaTeX y la invalidación `~N` con
+    cambios sin guardar.
+14. Con `vim.ui.open` simulado, probar `<leader>wg/wd` en normal/visual, UTF-8 y
+    caracteres reservados. Una prueba manual puede abrir Google/RAE/Merriam,
+    usando sólo texto no sensible.
+15. Registrar aparte Typst → DOCX como capacidad de mejor esfuerzo.
+16. Insertar una cita.
+17. Ejecutar `:WriteRoot`, `:WriteHealth`, `:checkhealth`,
     `:checkhealth livepreview` y `tests/smoke.lua`.
 
 ## Rollback por capa

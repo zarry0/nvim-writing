@@ -92,6 +92,18 @@ No se deben cambiar accidentalmente estas reglas:
     externa.
 19. El instalador de enlaces es no destructivo, idempotente y hace preflight de
     todos los destinos; no toca la configuración de programación ni `.zshrc`.
+20. El tema claro/oscuro es local a este repositorio; no depende de un
+    colorscheme externo ni modifica el perfil de programación.
+21. UI, statusline, terminal e iconos son monocromáticos. Los acentos se aplican
+    sólo a capturas de estructura/sintaxis calificadas para Markdown, Typst y
+    LaTeX; spell conserva exclusivamente un undercurl rojo.
+22. Tabby no añade número, icono o branding a las tabs: muestra
+    `parent/file.ext` y el botón `×` sobre tabpages nativas.
+23. El contador de la barra mide prosa semántica del buffer actual sin guardar;
+    nunca usa `wordcount()` bruto para Markdown, Typst o LaTeX, ni cuenta código,
+    fórmulas, URLs, claves de cita o bibliografía generada.
+24. Las consultas externas abren URLs mediante `vim.ui.open`; nunca interpolan
+    la selección en un shell. Sólo la consulta elegida sale al proveedor.
 
 ## Modelo de documentos y raíz
 
@@ -153,6 +165,9 @@ build, bibliografía o reference DOCX de la raíz.
 | `:WriteExport[!] pdf\|docx` | Exporta al `build/` validado |
 | `:WriteLanguage[!]` | Cambia idioma; `!` persiste metadata |
 | `:WriteCitation` | Inserta una clave desde `references.bib` |
+| `:WriteTheme [dark\|light\|toggle]` | Cambia el tema de la sesión |
+| `:WriteGoogle [consulta]` | Abre Google con argumento, palabra o selección |
+| `:WriteDictionary [es\|en] [consulta]` | Abre RAE/Merriam-Webster o selector |
 | `:WriteFocus` | Alterna Snacks Zen |
 | `:WriteHealth` | Ejecuta el provider `checkhealth writing` |
 
@@ -166,7 +181,8 @@ Son API pública. Si se renombran, se deben actualizar mappings y ambos docs.
 |---|---|
 | `<leader>wn/wp/wP/wb` | New, iniciar preview, detener preview, build |
 | `<leader>wep/wed` | PDF, DOCX |
-| `<leader>wl/wc/wr/wf/wh` | Idioma, cita, root, focus, health |
+| `<leader>wl/wc/wr/wf/wh/wt` | Idioma, cita, root, focus, health, theme |
+| `<leader>wg/wd` | Google y diccionario; normal o selección visual |
 | `<leader>ff/fs/fc/fo` | Archivos, grep, config, outline |
 | `<leader>/` | Buscar en el buffer |
 | `<leader><leader>` | Buffers abiertos |
@@ -187,6 +203,52 @@ explícitamente esta invariante.
 
 Oil representa directorios como buffers editables. Sus operaciones se aplican al
 guardar y conservan confirmaciones. No añadir un segundo explorador por defecto.
+
+## Tema y UI
+
+`lua/writing/core/theme.lua` implementa dos variantes del tema local
+`writing-monochrome`; `:WriteTheme` no llama a un colorscheme de terceros. La
+variante inicial está en `settings.theme_variant`.
+
+Paleta oscura, inspirada en GitHub Monochrome:
+
+```text
+bg #0D1117  panel #161B22/#21262D  border #30363D
+fg #F0F0F0  muted #8B949E          faint #484F58
+```
+
+Paleta clara basada en la referencia proporcionada:
+
+```text
+bg #FAFAFA  panel #EEF1F4/#E8EBF0  border #DDE2E7
+fg #20232A  muted #8790A0          faint #BAC3CB
+```
+
+Ambas comparten los acentos `#D05858`, `#BE7E05`, `#608E32`, `#3A8B84`,
+`#5079BE` y `#B05CCC`. El rojo de spell es siempre `#D05858`. La base neutraliza
+grupos genéricos de UI y código; los acentos documentales se definen con sufijo
+`.markdown`, `.markdown_inline`, `.typst` o `.latex`. No crear highlights para
+`@spell` o `@nospell`: son capturas de control y un `fg` allí puede ocultar las
+capturas estructurales superpuestas. Tinymist también requiere overrides
+`@lsp.type.*.typst`, pero no se define `@lsp.type.text.typst`: ese token de alta
+prioridad taparía headings y otras capturas Treesitter. El override
+`@lsp.type.heading.typst` conserva el acento estructural.
+
+El cursor tiene forma explícita y `CursorLine` visible; `number` y
+`relativenumber` permanecen activos. Devicons conserva los glifos con
+`color_icons=false`. Oil, fzf, diagnósticos, Git, búsquedas y terminal usan sólo
+neutros. El quote body, strong e italic conservan el color de la prosa; sólo sus
+marcadores/atributos estructurales reciben estilo o acento.
+
+Lualine es plana y no usa extensiones, porque las extensiones de Lazy, Mason,
+Oil y quickfix reintroducen contenido. Su contrato es:
+
+```text
+a: modo | b: vacío | c: parent/file.ext [+]
+x: conteo semántico + idioma | y: progreso | z: vacío
+```
+
+El listener de `theme.on_change` vuelve a aplicar sólo el tema plano de Lualine.
 
 ## Undo
 
@@ -212,6 +274,62 @@ fuente; sus índices `.add.spl` se regeneran localmente y están ignorados por G
 `WriteLanguage!` sólo reemplaza el comentario LTeX precedido por el sentinel
 `nvim-writing: managed-ltex`; los magic comments manuales dentro de secciones
 son contenido del usuario y deben preservarse.
+
+## Conteo semántico de prosa
+
+`lua/writing/core/word_count.lua` mantiene caché por buffer y `changedtick`, con
+debounce de 450 ms. TXT se procesa en memoria. Markdown, Typst y LaTeX se envían
+sin guardar por stdin a un proceso local:
+
+```text
+pandoc --from=<reader> --to=json --standalone --wrap=none
+       --lua-filter=scripts/pandoc-prose.lua
+```
+
+Se usa `vim.system` con argv y `cwd` igual al directorio del archivo; no hay
+shell ni red. Esto permite resolver imports/includes relativos sin cambiar el
+`cwd` global. El filtro conserva prosa visible y metadata `title`, `subtitle`,
+`author`, `date` y `abstract`; elimina Code/CodeBlock, Math, Raw, Image, URLs,
+claves de cita y el bloque `refs` generado. En Cite sólo conserva prefijos o
+sufijos escritos alrededor de la clave. Lua recorre después únicamente nodos
+AST `Str`: números de listas, marcadores de notas y demás estructura del writer
+no existen como palabras. Dentro de cada `Str`, la clase Vim
+`\%#=2[^[:lower:][:upper:][:digit:]]\+` fuerza el motor Unicode y separa
+corridas en tiempo lineal sin depender de `iskeyword` del buffer activo. No usa
+tokens separados únicamente por espacios ni substrings sucesivos de costo
+cuadrático. No usar
+`\\W`: separa de forma inconsistente algunas letras acentuadas.
+
+El reader Markdown conserva `implicit_figures`. `Figure` se reemplaza por su
+contenido visible más su caption e `Image` se elimina; así un pie de figura
+aislado cuenta, pero el alt text de una imagen inline no. Conservar el contenido
+es necesario para figuras Typst cuyo cuerpo puede ser texto o tablas. Las tres
+rutas tienen fixtures separados.
+
+El resultado es del buffer actual, no del proyecto entero. La fuente del buffer
+puede estar sin guardar; imports abiertos en otros buffers se leen del disco.
+Tiempo máximo: 2.5 s. Tamaño máximo: 2 MiB. Durante una invalidación o tras un
+error se conserva el último éxito como `~N palabras`; sin éxito previo se muestra
+`… palabras`. Pandoc es una aproximación semántica para Typst avanzado, no el
+motor de layout; `typst-essay` y fixtures representativos de Markdown, Typst y
+LaTeX están cubiertos por conteos exactos en el smoke.
+
+## Consultas externas
+
+`lua/writing/core/lookup.lua` toma `<cword>` o una selección mediante
+`getregion`, sin yank ni modificación de registros. Un encoder RFC3986 byte a
+byte deja sin escapar únicamente `[A-Za-z0-9._~-]`; así `&`, `/`, `?`, `#`, `%`
+y UTF-8 no pueden cambiar la estructura de la URL.
+
+- Google: `https://www.google.com/search?q=...`.
+- Español: `https://dle.rae.es/...`.
+- Inglés: `https://www.merriam-webster.com/dictionary/...`.
+
+El diccionario infiere tokens reales de `spelllang`; una combinación bilingüe,
+`off` o idioma desconocido abre selector. `vim.ui.open` delega al navegador del
+sistema. El documento nunca se envía completo, pero la palabra/frase consultada
+sí se comparte con el proveedor y esta frontera de privacidad debe permanecer
+documentada.
 
 ## Typst, Markdown, exportación y citas
 
@@ -243,6 +361,8 @@ inesperados de paquetes externos; sus márgenes deben revisarse según el destin
 bin/
 ├── nvwrite
 └── install-links.zsh
+scripts/
+└── pandoc-prose.lua
 tests/
 ├── smoke.lua
 └── install-links.zsh
@@ -260,6 +380,9 @@ lua/writing/
 │   ├── templates.lua
 │   ├── language.lua
 │   ├── live_preview.lua
+│   ├── theme.lua
+│   ├── word_count.lua
+│   ├── lookup.lua
 │   └── commands.lua
 ├── health.lua
 └── plugins/
@@ -286,7 +409,10 @@ Antes de modificar:
 5. Probar un archivo suelto y un proyecto generado fuera del repo.
 6. Probar rutas con espacios y caracteres de shell.
 7. Actualizar docs si cambia la API pública.
-8. Ejecutar `tests/smoke.lua`, `:WriteHealth` y la matriz de `docs/UPDATING.md`.
+8. Si cambia tema/TS, probar ambas variantes y Markdown/Typst/LaTeX.
+9. Si cambia el contador, probar fixtures con markup, código, math, URLs, citas y
+   bibliografía, además de contenido sin guardar y estado `~`.
+10. Ejecutar `tests/smoke.lua`, `:WriteHealth` y la matriz de `docs/UPDATING.md`.
 
 Para añadir un idioma, extiende únicamente el mapa de `language.lua`, el
 completado y las pruebas. Para añadir una plantilla, crea una carpeta autocontenida,

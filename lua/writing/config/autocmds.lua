@@ -1,6 +1,7 @@
 local group = vim.api.nvim_create_augroup("nvim-writing", { clear = true })
 
 vim.filetype.add({ extension = { typ = "typst" } })
+vim.treesitter.language.register("latex", { "tex", "plaintex" })
 
 vim.api.nvim_create_autocmd("TextYankPost", {
   group = group,
@@ -29,7 +30,7 @@ vim.api.nvim_create_autocmd("FileType", {
 
 vim.api.nvim_create_autocmd("FileType", {
   group = group,
-  pattern = { "markdown", "typst", "bib" },
+  pattern = { "markdown", "typst", "tex", "plaintex", "bib" },
   desc = "Activar Treesitter si el parser está disponible",
   callback = function()
     pcall(vim.treesitter.start)

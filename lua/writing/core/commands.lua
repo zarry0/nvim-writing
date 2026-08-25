@@ -171,6 +171,44 @@ function M.setup()
     desc = "Buscar e insertar una cita",
   })
 
+  vim.api.nvim_create_user_command("WriteTheme", function(opts)
+    local requested = opts.args ~= "" and opts.args or "toggle"
+    local ok, result = require("writing.core.theme").apply(requested)
+    if ok then
+      notify("Tema: " .. result)
+    else
+      notify(result, vim.log.levels.ERROR)
+    end
+  end, {
+    nargs = "?",
+    complete = function()
+      return { "dark", "light", "toggle" }
+    end,
+    desc = "Cambiar tema claro u oscuro",
+  })
+
+  vim.api.nvim_create_user_command("WriteGoogle", function(opts)
+    require("writing.core.lookup").google(opts.args)
+  end, {
+    nargs = "*",
+    desc = "Buscar palabra o consulta en Google",
+  })
+
+  vim.api.nvim_create_user_command("WriteDictionary", function(opts)
+    local arguments = vim.list_slice(opts.fargs)
+    local language
+    if arguments[1] == "es" or arguments[1] == "en" then
+      language = table.remove(arguments, 1)
+    end
+    require("writing.core.lookup").dictionary(language, table.concat(arguments, " "))
+  end, {
+    nargs = "*",
+    complete = function()
+      return { "es", "en" }
+    end,
+    desc = "Consultar palabra en el diccionario",
+  })
+
   vim.api.nvim_create_user_command("WriteFocus", function()
     if not _G.Snacks then
       notify("Snacks aún no está disponible", vim.log.levels.ERROR)
@@ -192,6 +230,19 @@ function M.setup()
   map("n", "<leader>wed", "<cmd>WriteExport docx<CR>", { desc = "Writing: exportar DOCX" })
   map("n", "<leader>wl", "<cmd>WriteLanguage<CR>", { desc = "Writing: idioma" })
   map("n", "<leader>wc", "<cmd>WriteCitation<CR>", { desc = "Writing: cita" })
+  map("n", "<leader>wt", "<cmd>WriteTheme toggle<CR>", { desc = "Writing: alternar tema" })
+  map("n", "<leader>wg", function()
+    require("writing.core.lookup").google(nil, false)
+  end, { desc = "Writing: buscar en Google" })
+  map("x", "<leader>wg", function()
+    require("writing.core.lookup").google(nil, true)
+  end, { desc = "Writing: buscar selección en Google" })
+  map("n", "<leader>wd", function()
+    require("writing.core.lookup").dictionary(nil, nil, false)
+  end, { desc = "Writing: consultar diccionario" })
+  map("x", "<leader>wd", function()
+    require("writing.core.lookup").dictionary(nil, nil, true)
+  end, { desc = "Writing: consultar selección en diccionario" })
   map("n", "<leader>wr", "<cmd>WriteRoot<CR>", { desc = "Writing: mostrar raíz" })
   map("n", "<leader>wf", "<cmd>WriteFocus<CR>", { desc = "Writing: concentración" })
   map("n", "<leader>wh", "<cmd>WriteHealth<CR>", { desc = "Writing: health" })
