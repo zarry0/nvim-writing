@@ -379,8 +379,15 @@ en el directorio de estado aislado de `nvim-writing`.
 | `<Space>wg` | Buscar palabra/selección en Google |
 | `<Space>wd` | Consultar palabra/selección en diccionario |
 | `<Space>u` | Undo tree nativo |
+| `j` / `k` sin conteo | Moverse por los renglones visuales de una línea con wrap |
+| `{count}j` / `{count}k` | Moverse por líneas lógicas según los números relativos |
 
 Gitsigns usa `]h`/`[h` para navegar hunks y el grupo `<Space>g` para acciones.
+
+Así, una pulsación de `j` o `k` sigue siendo cómoda dentro de un párrafo largo,
+pero `4j` desde la línea lógica 5 termina en la 9 aunque la línea 5 ocupe varios
+renglones en pantalla. Cualquier conteo explícito, incluido `1j`/`1k`, conserva
+el movimiento lógico nativo. `J` y `K` mayúsculas no cambian.
 
 ## Diagnóstico rápido
 

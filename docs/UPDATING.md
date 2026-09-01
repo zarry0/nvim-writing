@@ -130,26 +130,31 @@ reemplazarse por un conteo bruto del source.
    tabs.
 6. Probar archivos, grep, buffer y outline con fzf.
 7. Abrir LazyGit en un repositorio de prueba.
-8. Crear un proyecto Typst fuera del repo con `:WriteNew`.
-9. Preview y PDF desde Typst; preview y DOCX desde Markdown. En Markdown,
+8. Crear con `<leader>wn` un proyecto Typst fuera del repo y en una ruta con
+   espacios. Debe abrir `main.typ` sin `E523`, aplicar `spelllang=es` y seleccionar
+   únicamente el `spellfile` ES.
+9. En una línea lógica larga con wrap, comprobar que `j/k` sin conteo recorren
+   renglones visuales; desde la línea lógica 5, `4j` debe llegar a la 9 y `4k`
+   debe regresar a la 5, en concordancia con los números relativos.
+10. Preview y PDF desde Typst; preview y DOCX desde Markdown. En Markdown,
    confirmar que el servidor usa `127.0.0.1`, un puerto efímero, bloquea path
    traversal y symlinks, rechaza WebSockets cross-origin, envía la CSP esperada
    y no conserva clientes al ejecutar `:WritePreviewStop`.
-10. Abrir `<leader>u`, recorrer una rama del undo tree nativo y cerrarlo.
-11. Ejecutar `:WriteTheme light`, `dark` y `toggle`: texto y UI deben permanecer
+11. Abrir `<leader>u`, recorrer una rama del undo tree nativo y cerrarlo.
+12. Ejecutar `:WriteTheme light`, `dark` y `toggle`: texto y UI deben permanecer
     monocromáticos, syntax documental usar los seis acentos, spell conservar
     undercurl `#E17373` oscuro/`#D05858` claro, cursor/números relativos seguir
     visibles e iconos de Oil/fzf conservar glifo sin color propio.
-12. Verificar Lualine: modo, `parent/file.ext [+]`, conteo, idioma y progreso;
+13. Verificar Lualine: modo, `parent/file.ext [+]`, conteo, idioma y progreso;
     no branch, diff, diagnósticos, LSP, filetype o location.
-13. Probar conteos exactos TXT/Markdown/Typst/LaTeX y la invalidación `~N` con
+14. Probar conteos exactos TXT/Markdown/Typst/LaTeX y la invalidación `~N` con
     cambios sin guardar.
-14. Con `vim.ui.open` simulado, probar `<leader>wg/wd` en normal/visual, UTF-8 y
+15. Con `vim.ui.open` simulado, probar `<leader>wg/wd` en normal/visual, UTF-8 y
     caracteres reservados. Una prueba manual puede abrir Google/RAE/Merriam,
     usando sólo texto no sensible.
-15. Registrar aparte Typst → DOCX como capacidad de mejor esfuerzo.
-16. Insertar una cita.
-17. Ejecutar `:WriteRoot`, `:WriteHealth`, `:checkhealth`,
+16. Registrar aparte Typst → DOCX como capacidad de mejor esfuerzo.
+17. Insertar una cita.
+18. Ejecutar `:WriteRoot`, `:WriteHealth`, `:checkhealth`,
     `:checkhealth livepreview` y `tests/smoke.lua`.
 
 ## Rollback por capa

@@ -104,6 +104,10 @@ No se deben cambiar accidentalmente estas reglas:
     fórmulas, URLs, claves de cita o bibliografía generada.
 24. Las consultas externas abren URLs mediante `vim.ui.open`; nunca interpolan
     la selección en un shell. Sólo la consulta elegida sale al proveedor.
+25. `j/k` sin conteo recorren renglones visuales; con cualquier conteo explícito
+    recorren líneas lógicas y coinciden con los números relativos.
+26. `OptionSet spelllang` nunca cambia `spellfile` de forma síncrona: puede
+    dispararse dentro del contexto restringido de una modeline.
 
 ## Modelo de documentos y raíz
 
@@ -198,6 +202,8 @@ Son API pública. Si se renombran, se deben actualizar mappings y ambos docs.
 | `<leader>u` | Undo tree nativo |
 | `<C-h/j/k/l>` | Foco entre ventanas |
 | `<C-t>t/c/n/p` | Crear, cerrar, siguiente, anterior tabpage |
+| `j/k` sin conteo | Renglón visual anterior/siguiente dentro del wrap |
+| `{count}j/k` | Líneas lógicas nativas; coincide con números relativos |
 
 ## Tabs y Oil
 
@@ -281,6 +287,13 @@ fuente; sus índices `.add.spl` se regeneran localmente y están ignorados por G
 `WriteLanguage!` sólo reemplaza el comentario LTeX precedido por el sentinel
 `nvim-writing: managed-ltex`; los magic comments manuales dentro de secciones
 son contenido del usuario y deben preservarse.
+
+Neovim puede disparar `OptionSet spelllang` mientras procesa una modeline. Ese
+contexto restringido no permite cambiar otra opción y hacerlo de forma síncrona
+produce `E523`. El autocmd debe capturar el buffer, diferir `spell.configure`
+con `vim.schedule` y validar que el buffer siga siendo válido y esté cargado.
+No volver síncrono ese callback; las llamadas explícitas fuera de una modeline
+sí pueden configurar `spellfile` inmediatamente.
 
 `writing.core.spell` ordena `spellfile` según los tokens efectivos de
 `spelllang`. `WriteSpellAdd/Remove` usa explícitamente la entrada ES o EN; si

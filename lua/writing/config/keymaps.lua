@@ -33,5 +33,19 @@ map("n", "<leader>yp", function()
   vim.notify("Ruta copiada: " .. path)
 end, { desc = "Copiar ruta del archivo" })
 
-map({ "n", "x" }, "j", "gj", { desc = "Bajar una línea visual" })
-map({ "n", "x" }, "k", "gk", { desc = "Subir una línea visual" })
+local function wrapped_motion(key)
+  return function()
+    return vim.v.count == 0 and "g" .. key or key
+  end
+end
+
+map({ "n", "x" }, "j", wrapped_motion("j"), {
+  expr = true,
+  silent = true,
+  desc = "Bajar renglón visual; con conteo, línea lógica",
+})
+map({ "n", "x" }, "k", wrapped_motion("k"), {
+  expr = true,
+  silent = true,
+  desc = "Subir renglón visual; con conteo, línea lógica",
+})

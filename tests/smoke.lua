@@ -97,6 +97,51 @@ for _, mapping in ipairs({
   assert(next(vim.fn.maparg(mapping.lhs, mapping.mode, false, true)) ~= nil, "falta mapping " .. mapping.lhs)
 end
 
+for _, mode in ipairs({ "n", "x" }) do
+  for _, key in ipairs({ "j", "k" }) do
+    local mapping = vim.fn.maparg(key, mode, false, true)
+    assert_equal(mapping.expr, 1, key .. " debe distinguir conteos en modo " .. mode)
+    assert(type(mapping.callback) == "function", key .. " debe usar un callback expr en modo " .. mode)
+  end
+end
+
+local motion_buffer = vim.api.nvim_create_buf(false, true)
+local motion_lines = { "uno", "dos", "tres", "cuatro", string.rep("palabra ", 24) }
+vim.list_extend(motion_lines, { "seis", "siete", "ocho", "nueve", "diez" })
+vim.api.nvim_buf_set_lines(motion_buffer, 0, -1, false, motion_lines)
+local motion_window = vim.api.nvim_open_win(motion_buffer, true, {
+  relative = "editor",
+  row = 1,
+  col = 1,
+  width = 24,
+  height = 8,
+  style = "minimal",
+  noautocmd = true,
+})
+vim.wo[motion_window].wrap = true
+vim.wo[motion_window].linebreak = true
+vim.wo[motion_window].breakindent = true
+vim.wo[motion_window].number = true
+vim.wo[motion_window].relativenumber = true
+vim.wo[motion_window].signcolumn = "no"
+
+local function feed_mapped(keys)
+  vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes(keys, true, false, true), "mx", false)
+end
+
+vim.api.nvim_win_set_cursor(motion_window, { 5, 0 })
+feed_mapped("j")
+local wrapped_cursor = vim.api.nvim_win_get_cursor(motion_window)
+assert_equal(wrapped_cursor[1], 5, "j sin conteo debe recorrer el wrap")
+assert(wrapped_cursor[2] > 0, "j sin conteo debe avanzar al siguiente renglón visual")
+vim.api.nvim_win_set_cursor(motion_window, { 5, 0 })
+feed_mapped("4j")
+assert_equal(vim.api.nvim_win_get_cursor(motion_window)[1], 9, "4j debe recorrer cuatro líneas lógicas")
+feed_mapped("4k")
+assert_equal(vim.api.nvim_win_get_cursor(motion_window)[1], 5, "4k debe recorrer cuatro líneas lógicas")
+vim.api.nvim_win_close(motion_window, true)
+vim.api.nvim_buf_delete(motion_buffer, { force = true })
+
 local lookup = require("writing.core.lookup")
 assert_equal(
   lookup.encode_component("canción & café/te?#%"),
@@ -150,6 +195,33 @@ vim.ui.open = original_ui_open
 vim.ui.select = original_ui_select
 
 local spell = require("writing.core.spell")
+local spell_option_autocmds = vim.api.nvim_get_autocmds({
+  group = "nvim-writing-spell",
+  event = "OptionSet",
+  pattern = "spelllang",
+})
+assert_equal(#spell_option_autocmds, 1, "un solo autocmd OptionSet para spelllang")
+assert(type(spell_option_autocmds[1].callback) == "function", "OptionSet spelllang debe usar callback Lua")
+local original_schedule = vim.schedule
+local original_configure = spell.configure
+local scheduled_configure
+local configured_buffer
+vim.schedule = function(callback)
+  scheduled_configure = callback
+end
+spell.configure = function(bufnr)
+  configured_buffer = bufnr
+end
+local option_callback_ok, option_callback_error = pcall(spell_option_autocmds[1].callback, { buf = 0 })
+vim.schedule = original_schedule
+assert(option_callback_ok, option_callback_error)
+assert(configured_buffer == nil, "OptionSet no debe configurar spellfile dentro de una modeline")
+assert(type(scheduled_configure) == "function", "OptionSet debe diferir la configuración de spellfile")
+local scheduled_ok, scheduled_error = pcall(scheduled_configure)
+spell.configure = original_configure
+assert(scheduled_ok, scheduled_error)
+assert_equal(configured_buffer, vim.api.nvim_get_current_buf(), "OptionSet debe capturar el buffer actual cuando event.buf=0")
+
 local spell_source = vim.api.nvim_get_current_buf()
 local personal_root = vim.fn.tempname() .. "-nvim-writing-personal-wordlist"
 assert_equal(vim.fn.mkdir(personal_root, "p"), 1, "crear fixture de lista personal")
@@ -537,10 +609,24 @@ vim.cmd.tabclose()
 assert_equal(vim.fn.tabpagenr("$"), initial_tabs, "tabpage nativa cerrada")
 
 local destination = vim.fn.tempname() .. "-nvim-writing-project"
-local created, create_error = require("writing.core.templates").create("essay", destination)
+local create_done = false
+local create_call_ok, created, create_error
+vim.schedule(function()
+  create_call_ok, created, create_error = pcall(require("writing.core.templates").create, "essay", destination)
+  create_done = true
+end)
+assert(vim.wait(3000, function()
+  return create_done
+end), "WriteNew no terminó desde un callback programado")
+assert(create_call_ok, "WriteNew falló al procesar la modeline: " .. tostring(created))
 assert(created, create_error)
 assert(vim.uv.fs_stat(vim.fs.joinpath(destination, "main.typ")), "WriteNew no copió main.typ")
 assert(vim.uv.fs_stat(vim.fs.joinpath(destination, ".writing.json")), "WriteNew no copió el manifest")
+assert_equal(vim.bo.spelllang, "es", "la modeline del proyecto debe seleccionar español")
+assert(vim.wait(1000, function()
+  local wordlists = vim.opt_local.spellfile:get()
+  return #wordlists == 1 and wordlists[1]:match("/es%.utf%-8%.add$") ~= nil
+end), "la modeline debe configurar el spellfile español fuera del contexto restringido")
 assert_equal(
   require("tabby.feature.tab_name").get(0),
   vim.fs.basename(destination) .. "/main.typ",

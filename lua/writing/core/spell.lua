@@ -667,8 +667,17 @@ function M.setup()
   vim.api.nvim_create_autocmd("OptionSet", {
     group = group,
     pattern = "spelllang",
-    callback = function()
-      M.configure(0)
+    callback = function(event)
+      local bufnr = event.buf
+      if not bufnr or bufnr == 0 then
+        bufnr = vim.api.nvim_get_current_buf()
+      end
+      -- Modelines run in a restricted context: changing spellfile there raises E523.
+      vim.schedule(function()
+        if vim.api.nvim_buf_is_valid(bufnr) and vim.api.nvim_buf_is_loaded(bufnr) then
+          M.configure(bufnr)
+        end
+      end)
     end,
   })
   vim.api.nvim_create_autocmd({ "TextChanged", "TextChangedI" }, {
